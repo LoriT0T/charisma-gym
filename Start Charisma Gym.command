@@ -28,8 +28,11 @@ if ! curl -sf -o /dev/null http://127.0.0.1:8787/api/config; then
   exit 1
 fi
 
+# --protocol http2 is deliberate. This network blocks/throttles QUIC (UDP), which
+# silently kills the tunnel's control stream and makes links look "expired".
+# Diagnosed 2026-08-15. Do not remove without re-testing on this network.
 echo "Opening the tunnel (this mints a fresh link each time)..."
-nohup cloudflared tunnel --url http://127.0.0.1:8787 > logs/tunnel.log 2>&1 &
+nohup cloudflared tunnel --url http://127.0.0.1:8787 --protocol http2 > logs/tunnel.log 2>&1 &
 
 URL=""
 for i in {1..30}; do
