@@ -1,0 +1,16 @@
+# SECRETS — never commit. The Gemini key lives in host secrets, not in git.
+.env
+*.env
+!.env.example
+
+# The friend's memory of you — personal conversation data.
+memory.json
+charisma-coach/backend/memory.json
+
+# Local runtime junk
+.venv/
+__pycache__/
+*.pyc
+logs/
+phone-link.txt
+.DS_Store

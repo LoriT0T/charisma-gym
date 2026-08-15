@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Good Company — a friend on the line</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>" />
+</head>
+<body>
+
+<!-- ======================= SETUP OVERLAY ======================= -->
+<div id="setup" class="overlay">
+  <div class="setup-card">
+    <div class="brand">
+      <h1>Good <em>Company</em></h1>
+      <p class="sub">A friend on the line, whenever you want to talk.<br/>
+      Talk about anything — and quietly get better at talking.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Who do you want to call?</label>
+      <div id="persona-cards" class="persona-cards"><!-- filled from /api/config --></div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label" for="scenario">Mood</label>
+        <select id="scenario"></select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="voice">Voice</label>
+        <select id="voice"></select>
+      </div>
+    </div>
+
+    <div class="field hidden" id="passcode-field">
+      <label class="field-label" for="passcode">Door code</label>
+      <input id="passcode" type="password" inputmode="text" placeholder="the code you were given" autocomplete="current-password" />
+    </div>
+
+    <button id="start-btn" class="btn btn-primary btn-big">
+      <span class="mic-glyph" aria-hidden="true"></span> <span id="start-label">Call your friend</span>
+    </button>
+    <p id="setup-note" class="setup-note">Uses your microphone. Calls run up to ~15 minutes — and he remembers you next time.</p>
+  </div>
+</div>
+
+<!-- ======================= MAIN APP ======================= -->
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div class="brand-inline">
+      <span class="brand-name">Good <em>Company</em></span>
+    </div>
+    <div class="session-meta">
+      <span id="coach-chip" class="chip chip-coach">—</span>
+      <span id="scenario-chip" class="chip">—</span>
+      <span id="timer" class="chip chip-timer" aria-label="session time">0:00</span>
+      <span id="conn-status" class="chip chip-status" data-state="connecting">connecting…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ------------ THE STAGE ------------ -->
+    <section class="stage" aria-label="conversation stage">
+      <div id="character" class="character-stage"></div>
+
+      <div class="captions" aria-live="polite">
+        <div id="caption-coach" class="caption caption-coach hidden">
+          <span class="caption-who" id="caption-coach-name">COACH</span>
+          <span class="caption-text"></span>
+        </div>
+        <div id="caption-user" class="caption caption-user hidden">
+          <span class="caption-who">YOU</span>
+          <span class="caption-text"></span>
+        </div>
+      </div>
+
+      <div class="stage-controls">
+        <button id="mute-btn" class="btn btn-round" title="Mute microphone" aria-pressed="false">
+          <span class="mic-glyph"></span>
+        </button>
+        <button id="coach-read-btn" class="btn btn-pill" title="He'll tell you honestly, as a friend">
+          How am I coming across?
+        </button>
+        <button id="end-btn" class="btn btn-pill btn-danger" title="Hang up and get his recap of the talk">
+          Wrap up
+        </button>
+      </div>
+
+      <form id="text-form" class="text-form" autocomplete="off">
+        <input id="text-input" type="text" placeholder="…or type a line instead of speaking" />
+      </form>
+    </section>
+
+    <!-- ------------ THE BOOTH (HUD) ------------ -->
+    <aside class="booth" aria-label="charisma analysis">
+      <nav class="booth-tabs" role="tablist">
+        <button class="tab active" data-tab="coaching" role="tab">Vibes</button>
+        <button class="tab" data-tab="transcript" role="tab">Transcript</button>
+        <button class="tab" data-tab="history" role="tab">History</button>
+      </nav>
+
+      <div id="tab-coaching" class="tab-panel active" role="tabpanel">
+        <div class="stat-tile viz-root">
+          <div class="stat-label">Your vibe</div>
+          <div class="stat-row">
+            <div id="overall-value" class="stat-value">—</div>
+            <div id="overall-delta" class="stat-delta"></div>
+            <svg id="spark" class="spark" viewBox="0 0 120 36" preserveAspectRatio="none" aria-label="charisma trend"></svg>
+          </div>
+          <div class="stat-foot"><span id="turns-analyzed">0 turns analyzed</span> · <span id="filler-total">0 fillers</span></div>
+        </div>
+
+        <div id="meters" class="meters viz-root"><!-- six dimension meters --></div>
+
+        <div class="feed-head">
+          <span>Nudges — steal these</span>
+          <span class="legend">
+            <span class="key"><i class="dot dot-brand"></i>Brand</span>
+            <span class="key"><i class="dot dot-ferguson"></i>Ferguson</span>
+          </span>
+        </div>
+        <div id="feed" class="feed">
+          <div class="feed-empty">Talk for a sentence or two and little nudges will start appearing here — tricks from the great charmers, matched to what you just said.</div>
+        </div>
+      </div>
+
+      <div id="tab-transcript" class="tab-panel" role="tabpanel">
+        <div id="transcript" class="transcript">
+          <div class="feed-empty">Nothing yet — the conversation lands here as you go.</div>
+        </div>
+      </div>
+
+      <div id="tab-history" class="tab-panel" role="tabpanel">
+        <div class="table-wrap">
+          <table id="history-table" class="history-table">
+            <thead><tr>
+              <th>Turn</th><th>Energy</th><th>Wit</th><th>Curiosity</th><th>Story</th><th>Confidence</th><th>Presence</th><th>Overall</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="feed-empty" id="history-empty">Scored turns appear here as a table.</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<!-- ======================= DEBRIEF OVERLAY ======================= -->
+<div id="debrief" class="overlay hidden">
+  <div class="debrief-card">
+    <div class="debrief-head">
+      <h2>The recap</h2>
+      <div class="debrief-actions">
+        <button id="debrief-copy" class="btn btn-pill">Copy</button>
+        <button id="debrief-again" class="btn btn-pill btn-primary">Call again</button>
+        <button id="debrief-close" class="btn btn-round" title="Close">✕</button>
+      </div>
+    </div>
+    <div id="debrief-body" class="debrief-body"><div class="debrief-loading">He's thinking back over your talk…</div></div>
+  </div>
+</div>
+
+<script src="audio.js"></script>
+<script src="character.js"></script>
+<script src="hud.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

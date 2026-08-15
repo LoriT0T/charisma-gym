@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+logs/
+.env
+memory.json
+charisma-coach/backend/memory.json
+phone-link.txt
+.git/
+.DS_Store
+*.command
