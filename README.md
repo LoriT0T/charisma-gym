@@ -103,9 +103,12 @@ never needs re-issuing:
 https://<hf-username>-good-company.hf.space
 ```
 
-Deploying is `git push` to the Space remote. The `Dockerfile` at the repo root
-builds the real backend — Gemini Live bridge, analyzer, debrief, memory — with
-nothing downgraded for hosting.
+**First deploy:** run `Deploy to Hugging Face.command`. It creates the Space,
+wires the git remote and pushes. It tells you exactly what to do if you aren't
+logged in yet.
+
+The `Dockerfile` at the repo root builds the real backend — Gemini Live bridge,
+analyzer, debrief, memory — with nothing downgraded for hosting.
 
 Secrets are **never committed**. `GEMINI_API_KEY` and `APP_PASSCODE` are set as
 Space secrets in the Space's Settings page, and `.gitignore` blocks `.env`.
@@ -182,6 +185,7 @@ tests both the voice and analyzer models end to end.
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| Tunnel link returns 530, or dies after a few days | **This network blocks QUIC (UDP).** cloudflared's control stream fails with "no recent network activity" and the link stops serving | Use `--protocol http2` — already baked into the start script. Diagnosed 2026-08-15 |
 | Phone link dead, server fine | Quick tunnel revoked (the zombie) | Re-run the start script — new link |
 | "No Live model available" | Model retired or key lacks access | Run `doctor.py`, put a working model in `.env` as `LIVE_MODEL` |
 | Call connects, no voice | Mic permission, or non-HTTPS origin | Browsers require HTTPS for mic — use the tunnel link, not the LAN IP |
