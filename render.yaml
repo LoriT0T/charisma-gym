@@ -1,0 +1,25 @@
+# Render Blueprint — Good Company.
+# Import this repo at https://dashboard.render.com/blueprints and Render reads
+# this file: no manual service configuration needed.
+#
+# Secrets are deliberately NOT here. sync:false means Render prompts for the
+# value once and stores it encrypted; it never enters the repo.
+
+services:
+  - type: web
+    name: good-company
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/config
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APP_PASSCODE
+        sync: false
+      - key: MEMORY_PATH
+        value: /home/user/data/memory.json
+      - key: LIVE_MODEL
+        value: gemini-3.1-flash-live-preview
+      - key: TEXT_MODEL
+        value: gemini-flash-latest

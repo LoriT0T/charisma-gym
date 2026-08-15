@@ -95,43 +95,63 @@ cd ~/CharismaGym/charisma-coach/backend && ../.venv/bin/python -m uvicorn main:a
 
 ## Hosting — the permanent link
 
-**The app is deployed as a Docker container on Hugging Face Spaces**, which gives
-a fixed URL that does not expire, does not depend on this Mac being awake, and
-never needs re-issuing:
+**The app deploys as a Docker container on Render**, which gives a fixed URL that
+does not expire, does not depend on this Mac being awake, and never needs
+re-issuing:
 
 ```
-https://<hf-username>-good-company.hf.space
+https://good-company.onrender.com
 ```
 
-**First deploy:** run `Deploy to Hugging Face.command`. It creates the Space,
-wires the git remote and pushes. It tells you exactly what to do if you aren't
-logged in yet.
+Source of truth is GitHub: **https://github.com/LoriT0T/good-company** (private).
+Render watches `main` and rebuilds on every push.
 
-The `Dockerfile` at the repo root builds the real backend — Gemini Live bridge,
-analyzer, debrief, memory — with nothing downgraded for hosting.
+**First deploy:** go to https://dashboard.render.com/blueprints → *New Blueprint
+Instance* → pick this repo. Render reads `render.yaml` and configures the service
+itself; it prompts once for `GEMINI_API_KEY` and `APP_PASSCODE`.
 
-Secrets are **never committed**. `GEMINI_API_KEY` and `APP_PASSCODE` are set as
-Space secrets in the Space's Settings page, and `.gitignore` blocks `.env`.
+The `Dockerfile` builds the real backend — Gemini Live bridge, analyzer, debrief,
+memory — with nothing downgraded for hosting.
+
+Secrets are **never committed**. `render.yaml` marks them `sync: false`, so Render
+prompts for the values and stores them encrypted. `.gitignore` blocks `.env`.
 
 ### Redeploying after a change
 
 ```bash
-cd ~/CharismaGym && git add -A && git commit -m "your change" && git push space main
+cd ~/CharismaGym && git add -A && git commit -m "your change" && git push
 ```
 
-The Space rebuilds automatically and the URL stays the same.
+Render rebuilds automatically. The URL stays the same.
 
 ### Env vars the container sets
 
 | Var | Value | Why |
 |---|---|---|
-| `PORT` | 7860 | The port HF Spaces expects |
+| `PORT` | injected by host (7860 default) | Render assigns its own; the CMD expands `$PORT` at runtime |
 | `HOST` | 0.0.0.0 | Must bind all interfaces inside a container |
 | `MEMORY_PATH` | `/home/user/data/memory.json` | Keeps memory off the code tree |
 
-**Free-tier caveat:** storage is ephemeral, so the friend's memory of you resets
-when the Space rebuilds or wakes from sleep. Free Spaces sleep after ~48h idle
-and wake in seconds. Persistent storage is a paid upgrade.
+### Free-tier caveats
+
+- **Spin-down after 15 min idle**, ~1 min cold start on the next request. Render
+  now counts *WebSocket messages* as traffic, so a call in progress will not be
+  cut off — the wait is only before the call connects. A free uptime pinger
+  hitting `/api/config` every 10 minutes keeps it warm within the 750 free
+  instance-hours/month.
+- **512 MB RAM / 0.1 CPU.** Fine here — the backend relays audio and Gemini does
+  the work.
+- **Ephemeral storage**, so the friend's memory resets on rebuild. A persistent
+  disk is a paid upgrade.
+
+### Why not Hugging Face Spaces
+
+Attempted first, and rejected on 2026-08-15: HF now returns **402 Payment
+Required** for Docker Spaces — *"Static Spaces are free for everyone, but hosting
+Gradio and Docker Spaces on free cpu-basic requires a PRO subscription"* ($9/mo).
+Only static Spaces remain free, which cannot run this backend. `Deploy to Hugging
+Face.command` and the README's HF frontmatter are kept for the day a PRO
+subscription exists — the Dockerfile works on both.
 
 **The door code matters more now.** The URL is public and permanent, so
 `APP_PASSCODE` is the only thing between the internet and your Gemini quota.

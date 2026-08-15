@@ -17,7 +17,8 @@ fi
 
 # 1. Must be logged in. Token entry is interactive on purpose — it never
 #    passes through a script and is stored in your keyring.
-HF_USER=$("$HF" auth whoami 2>/dev/null | head -1)
+# `hf auth whoami` prints "user=<name>" — strip the prefix and any stray whitespace.
+HF_USER=$("$HF" auth whoami 2>/dev/null | head -1 | sed -E 's/^user=//' | tr -d '[:space:]')
 if [ -z "$HF_USER" ] || [[ "$HF_USER" == *"Not logged in"* ]]; then
   echo "  Not logged in to Hugging Face."
   echo ""

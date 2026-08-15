@@ -28,4 +28,7 @@ RUN mkdir -p /home/user/data
 
 EXPOSE 7860
 WORKDIR /app/backend
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+
+# Shell form on purpose: $PORT must expand at runtime. Render injects its own
+# PORT; HF Spaces expects 7860, which is the default below.
+CMD python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}
