@@ -1,64 +1,59 @@
 #!/bin/zsh
-# Good Company — health check. Answers one question: is my link actually alive?
-# Run this any time the phone link seems dead.
+# Good Company — health check.
+# Checks the PERMANENT Render deployment first (that's the real app), then the
+# optional local dev server. Run this any time something seems off.
 cd "$(dirname "$0")"
+
+LIVE_URL="https://good-company.onrender.com"
 
 echo "Good Company — health check"
 echo "=================================================="
 
-# 1. Is the local server up and answering?
-if pgrep -f "uvicorn main:app" >/dev/null; then
-  if curl -sf -o /dev/null --max-time 5 http://127.0.0.1:8787/api/config; then
-    echo "  OK    Server is running and answering on 127.0.0.1:8787"
+# ---------- 1. The permanent deployment (what actually matters) ----------
+echo "  Checking $LIVE_URL ..."
+echo "  (a cold start after 15 min idle can take ~60s — this waits)"
+
+OK=0
+for i in {1..12}; do
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$LIVE_URL/api/config")
+  if [ "$CODE" = "200" ]; then OK=1; break; fi
+  sleep 5
+done
+
+if [ "$OK" = "1" ]; then
+  echo "  OK    LIVE: $LIVE_URL"
+  HAS_KEY=$(curl -s --max-time 20 "$LIVE_URL/api/config" | grep -o '"has_key":[a-z]*' | cut -d: -f2)
+  if [ "$HAS_KEY" = "true" ]; then
+    echo "  OK    GEMINI_API_KEY is set on the host"
   else
-    echo "  DEAD  Server process exists but is not answering — restart it."
-    echo "        Fix: run 'Start Charisma Gym.command'"
-    exit 1
+    echo "  WARN  GEMINI_API_KEY missing on the host — calls will fail."
+    echo "        Fix: Render dashboard -> good-company -> Environment"
   fi
+  printf "%s" "$LIVE_URL" | pbcopy
+  echo "        (link copied to clipboard)"
 else
-  echo "  DEAD  Server is not running."
-  echo "        Fix: run 'Start Charisma Gym.command'"
-  exit 1
+  echo "  DEAD  $LIVE_URL not responding (last HTTP $CODE)"
+  echo "        Check the deploy logs: https://dashboard.render.com"
 fi
 
-# 2. Is the tunnel process up?
+# ---------- 2. Local dev server (optional) ----------
+echo "--------------------------------------------------"
+if curl -sf -o /dev/null --max-time 5 http://127.0.0.1:8787/api/config 2>/dev/null; then
+  DOOR=$(grep -E "^APP_PASSCODE=" charisma-coach/backend/.env 2>/dev/null | cut -d= -f2- | tr -d "[:space:]")
+  echo "  OK    Local dev server up on 127.0.0.1:8787"
+  echo "        Door code: ${DOOR:-(see backend/.env)}"
+else
+  echo "  --    Local dev server not running (fine — Render is the real app)"
+  echo "        Start it only for development: 'Start Charisma Gym.command'"
+fi
+
+# ---------- 3. Legacy tunnel ----------
 if pgrep -f "cloudflared tunnel --url" >/dev/null; then
-  echo "  OK    Tunnel process is running"
-else
-  echo "  DEAD  Tunnel is not running — no public link."
-  echo "        Fix: run 'Start Charisma Gym.command'"
-  exit 1
-fi
-
-# 3. THE IMPORTANT ONE: does the public link actually serve traffic?
-#    A running cloudflared proves nothing — a revoked quick tunnel retries
-#    forever while serving nobody. That is what killed the last link.
-URL=$(cat phone-link.txt 2>/dev/null)
-if [ -z "$URL" ]; then
-  echo "  WARN  No link recorded in phone-link.txt"
-  exit 1
-fi
-
-CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/api/config")
-if [ "$CODE" = "200" ]; then
-  echo "  OK    Public link is LIVE: $URL"
-  echo "        Passcode: <door code — see backend/.env>"
-  printf "%s" "$URL" | pbcopy
-  echo "        (copied to clipboard)"
-else
-  echo "  DEAD  Public link is not serving (HTTP $CODE): $URL"
-  echo "        The quick tunnel was revoked. Cloudflare cannot give the same"
-  echo "        hostname back — you must mint a new one."
-  echo "        Fix: run 'Start Charisma Gym.command'"
-  exit 1
-fi
-
-# 4. Retry-loop detector — the signature of the zombie state.
-RETRIES=$(grep -c "Serve tunnel error" logs/tunnel.log 2>/dev/null)
-RETRIES=${RETRIES:-0}
-if [ "$RETRIES" -gt 50 ]; then
-  echo "  WARN  Tunnel log shows $RETRIES connection failures — restart soon."
+  RETRIES=$(grep -c "Serve tunnel error" logs/tunnel.log 2>/dev/null)
+  RETRIES=${RETRIES:-0}
+  echo "  --    A cloudflared tunnel is still running ($RETRIES errors)."
+  echo "        Superseded by Render. Stop it with 'Stop Charisma Gym.command'."
 fi
 
 echo "=================================================="
-echo "All good."
+[ "$OK" = "1" ] && echo "All good." || exit 1

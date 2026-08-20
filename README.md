@@ -84,7 +84,8 @@ playback), `character.js` (animated avatar), `hud.js` (live score panel),
 **Check if it's alive:** `Check Charisma Gym.command`
 **Stop:** `Stop Charisma Gym.command`
 
-Door code: `<door code — see backend/.env>` (set as `APP_PASSCODE` in `backend/.env`).
+Door code: set as `APP_PASSCODE` in `backend/.env` (and as a secret on the host).
+It is deliberately not written down in this repo.
 
 Manual start, if you prefer:
 ```bash
@@ -103,7 +104,7 @@ re-issuing:
 https://good-company.onrender.com
 ```
 
-Source of truth is GitHub: **https://github.com/LoriT0T/good-company** (private).
+Source of truth is GitHub: **https://github.com/LoriT0T/good-company** (public).
 Render watches `main` and rebuilds on every push.
 
 **First deploy:** go to https://dashboard.render.com/blueprints → *New Blueprint
@@ -162,7 +163,7 @@ subscription exists — the Dockerfile works on both.
 
 The local scripts still work for running on this Mac, and still mint a quick
 tunnel for phone testing. But that link is **disposable by design** — a random
-hostname every start, which Cloudflare will never hand back. Use the Space URL
+hostname every start, which Cloudflare will never hand back. Use the Render URL
 as the real link.
 
 ### The failure that killed the old link

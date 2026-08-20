@@ -60,6 +60,7 @@ UVPID=$(pgrep -f "uvicorn main:app" | head -1)
 [ -n "$UVPID" ] && nohup caffeinate -i -w "$UVPID" >/dev/null 2>&1 &
 
 if [ "$OK" = "1" ]; then
+  DOOR=$(grep -E "^APP_PASSCODE=" charisma-coach/backend/.env 2>/dev/null | cut -d= -f2- | tr -d "[:space:]")
   echo "$URL" > phone-link.txt
   printf "%s" "$URL" | pbcopy
   echo ""
@@ -67,7 +68,7 @@ if [ "$OK" = "1" ]; then
   echo "  Good Company is LIVE (verified)"
   echo "  Phone link (also copied to clipboard):"
   echo "  $URL"
-  echo "  Passcode: <door code — see backend/.env>"
+  echo "  Passcode: ${DOOR:-(see backend/.env)}"
   echo "=================================================="
   echo ""
   echo "The link changes each restart; the fresh one is always in phone-link.txt"
