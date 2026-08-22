@@ -17,6 +17,8 @@ services:
         sync: false
       - key: APP_PASSCODE
         sync: false
+      - key: CANONICAL_UI
+        value: https://lorit0t.github.io/charisma-gym/
       - key: MEMORY_PATH
         value: /home/user/data/memory.json
       - key: LIVE_MODEL

@@ -46,6 +46,11 @@ PORT = int(os.getenv("PORT", "8000"))
 # mounted volume — on ephemeral hosting this resets when the app rebuilds.
 MEMORY_PATH = Path(os.getenv("MEMORY_PATH", str(BACKEND_DIR / "memory.json")))
 
+# The single canonical home of the UI. Set on the API host so it redirects
+# rather than serving a second copy that would fork the user's local history.
+# Empty (local dev) = serve the UI from here as normal.
+CANONICAL_UI = os.getenv("CANONICAL_UI", "").strip()
+
 # Optional access gate for public/tunneled deployments. Empty = no gate.
 APP_PASSCODE = os.getenv("APP_PASSCODE", "").strip()
 

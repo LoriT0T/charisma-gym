@@ -11,7 +11,7 @@ import logging
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.websockets import WebSocketDisconnect
@@ -176,10 +176,22 @@ async def forget_memory(code: str = ""):
     return {"ok": True}
 
 
-# ---- static frontend (kept in its own top-level folder: ../frontend) ----
+# ---- static frontend ----
+#
+# There must be exactly ONE place the UI is used, because the training history
+# lives in the browser: a user who logs on this host one day and on the canonical
+# host the next ends up with two separate localStorage silos and a split record,
+# with no error to tell them. So when CANONICAL_UI is set (it is, on Render) this
+# host stops serving the UI and sends people to the canonical one, while still
+# serving /ws and /api — which is all it is really here for.
+#
+# 307 rather than 301 on purpose: a permanent redirect is cached hard by browsers
+# and is painful to walk back if the canonical home ever moves again.
 
 @app.get("/")
 async def index():
+    if config.CANONICAL_UI:
+        return RedirectResponse(config.CANONICAL_UI, status_code=307)
     return FileResponse(config.FRONTEND_DIR / "index.html")
 
 

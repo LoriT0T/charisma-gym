@@ -187,7 +187,28 @@ cd ~/CharismaGym/charisma-coach/backend && ../.venv/bin/python -m uvicorn main:a
 | Piece | Host | Why |
 |---|---|---|
 | **UI + all your data** | GitHub Pages — https://lorit0t.github.io/charisma-gym/ | Every sibling app serves from `lorit0t.github.io`, and a path does not scope web storage. Sitting on that origin is what lets the **Dīwān** hub read `charismagym.v1` in place, with no API and no pasted export. |
-| **Voice backend only** | Render — charisma-gym.onrender.com | The live call needs a server for the Gemini bridge and the API key. Nine of the ten modules do not. |
+| **Voice backend only** | Render — charisma-gym.onrender.com | The live call needs a server for the Gemini bridge and the API key. Nine of the ten modules do not. Its `/` **307-redirects** to the Pages URL. |
+
+**There is exactly one link: https://lorit0t.github.io/charisma-gym/**
+
+That is not cosmetic. The training history lives in the browser, so a user who
+logs on one host today and the other tomorrow ends up with two localStorage
+silos and a split record — with no error to warn them. `CANONICAL_UI` on the
+Render service makes it redirect instead of serving a second copy. Unset (local
+dev) it serves the UI normally.
+
+### Why the data is not synced to the repo
+
+Publishing the store to GitHub was considered and rejected. A browser cannot
+hold a write token — the repo is public, so the token would be handed to
+everyone who loads the page. Routing writes through this backend would work
+technically, but the field log holds personal reflections ("what happened, and
+what you avoided"), identity evidence and call scores; putting those in a public
+repo makes them world-readable and permanent in git history. A private repo does
+not help either, since Dīwān is a public static client and would need an embedded
+read token — the same leak inverted.
+
+Sitting on the shared origin gets the hub live data with none of that.
 
 `docs/` is the single copy of the frontend: Pages serves it directly and the
 Dockerfile copies the same directory into the container. One source, two
