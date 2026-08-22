@@ -182,6 +182,28 @@ cd ~/CharismaGym/charisma-coach/backend && ../.venv/bin/python -m uvicorn main:a
 
 ---
 
+## Where it runs — two places, on purpose
+
+| Piece | Host | Why |
+|---|---|---|
+| **UI + all your data** | GitHub Pages — https://lorit0t.github.io/charisma-gym/ | Every sibling app serves from `lorit0t.github.io`, and a path does not scope web storage. Sitting on that origin is what lets the **Dīwān** hub read `charismagym.v1` in place, with no API and no pasted export. |
+| **Voice backend only** | Render — charisma-gym.onrender.com | The live call needs a server for the Gemini bridge and the API key. Nine of the ten modules do not. |
+
+`docs/` is the single copy of the frontend: Pages serves it directly and the
+Dockerfile copies the same directory into the container. One source, two
+consumers, no drift.
+
+`app.js` addresses the backend absolutely when `location.hostname` ends in
+`github.io`, and same-origin otherwise (Render, localhost). The backend allows
+CORS from the Pages origin; `/ws` needs none (WebSockets do not use CORS) and
+stays gated by `APP_PASSCODE`.
+
+**The repo is public because GitHub Pages requires it on a free account.** No
+secrets are in it or in its history — the key lives in Render's environment and
+the door code was purged from history on 2026-08-15.
+
+---
+
 ## Hosting — the permanent link
 
 **The app deploys as a Docker container on Render**, which gives a fixed URL that
