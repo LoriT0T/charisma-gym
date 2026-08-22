@@ -205,6 +205,22 @@ memory — with nothing downgraded for hosting.
 Secrets are **never committed**. `render.yaml` marks them `sync: false`, so Render
 prompts for the values and stores them encrypted. `.gitignore` blocks `.env`.
 
+### Renaming the service — read before you touch `render.yaml`
+
+**Do not rename the service by editing `name:` in `render.yaml`.** Render keys
+blueprint services by name, so changing it does not rename anything — it
+creates a SECOND service and leaves the original running. That happened on
+2026-08-22 and produced two live services on the same repo.
+
+Worse, secrets marked `sync: false` are **not** carried to the new service, so
+the duplicate comes up with no `GEMINI_API_KEY` and — the dangerous half — no
+`APP_PASSCODE`, which means the passcode gate is disabled entirely
+(`_code_ok()` returns True for everyone when the value is empty).
+
+To rename: **Render dashboard → service → Settings → Name**. That moves the
+URL and keeps the environment. Then update `name:` in `render.yaml` to match,
+so a later blueprint sync does not create a duplicate all over again.
+
 ### Redeploying after a change
 
 ```bash
