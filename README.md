@@ -192,7 +192,7 @@ re-issuing:
 https://charisma-gym.onrender.com
 ```
 
-Source of truth is GitHub: **https://github.com/LoriT0T/charisma-gym** (public).
+Source of truth is GitHub: **https://github.com/LoriT0T/charisma-gym** (private).
 Render watches `main` and rebuilds on every push.
 
 **First deploy:** go to https://dashboard.render.com/blueprints → *New Blueprint
