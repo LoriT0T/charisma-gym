@@ -651,3 +651,83 @@ body.in-call .topnav { display: none; }
   .ev-day { flex-basis: 68px; }
   .mod-head h2 { font-size: 22px; }
 }
+
+/* ==========================================================================
+   ECOSYSTEM — prescription, field log, lab, signals.
+   Chart colours are validated against surface #14162b: single-hue accent for
+   magnitude, amber only as a non-adjacent highlight, diverging danger↔accent
+   with a neutral midpoint. Green is never adjacent to amber (protan ΔE 3.0).
+   ========================================================================== */
+
+/* ---- the prescription: one action, never a menu ---- */
+.rx-panel {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft), transparent 70%), var(--surface-1);
+  margin-bottom: 18px;
+}
+.rx-why {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--accent); margin-bottom: 7px; font-weight: 700;
+}
+.rx-what { font-size: 17px; line-height: 1.6; color: var(--text-primary); margin-bottom: 8px; }
+.rx-detail { font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; }
+.rx-panel .btn { margin-top: 4px; }
+
+/* ---- charts ---- */
+.viz { width: 100%; height: auto; display: block; margin: 10px 0 4px; }
+.viz-lab { font-size: 13px; fill: var(--text-secondary); font-family: var(--font); }
+.viz-val { font-size: 13px; fill: var(--text-muted); font-family: var(--font); }
+.viz-flag { font-size: 11px; fill: var(--ferguson-c); font-family: var(--font); letter-spacing: .4px; }
+
+/* ---- forms shared by field + lab ---- */
+.f-lab {
+  display: block; font-size: 11.5px; letter-spacing: .6px; text-transform: uppercase;
+  color: var(--text-muted); margin: 14px 0 6px;
+}
+.f-input, .f-select, .f-area {
+  width: 100%; padding: 10px 13px; border-radius: 10px; font-size: 14px;
+  background: var(--page); border: 1px solid var(--hairline);
+  color: var(--text-primary); font-family: var(--font);
+}
+.f-area { min-height: 78px; resize: vertical; line-height: 1.6; }
+.f-input:focus, .f-select:focus, .f-area:focus { outline: none; border-color: var(--accent); }
+.opt-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.opt {
+  padding: 7px 13px; border-radius: 999px; font-size: 12.5px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--hairline);
+  color: var(--text-secondary); font-family: var(--font);
+}
+.opt:hover { border-color: var(--accent); color: var(--text-primary); }
+.opt.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text-primary); }
+.two-col { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.note-row td { padding-top: 0 !important; }
+
+/* ---- lab ---- */
+.exp { padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+.exp:last-child { border-bottom: 0; }
+.exp-top { display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px; }
+.exp-top strong { font-size: 14.5px; line-height: 1.5; }
+.exp-bar { height: 5px; border-radius: 3px; background: var(--grid); margin: 9px 0; overflow: hidden; }
+.exp-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.exp.done { opacity: .78; }
+.pb { padding: 12px 0; border-bottom: 1px solid var(--hairline); }
+.pb:last-child { border-bottom: 0; }
+.pb-move { font-size: 15px; color: var(--text-primary); line-height: 1.55; }
+.pb-note {
+  margin-top: 6px; padding: 8px 12px; border-left: 3px solid var(--accent);
+  background: var(--accent-soft); border-radius: 0 8px 8px 0;
+  font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;
+}
+
+/* ---- signals ---- */
+.review-auto {
+  padding: 11px 14px; background: var(--surface-2); border-radius: 10px;
+  font-size: 13.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 12px;
+}
+
+@media (max-width: 720px) {
+  .two-col { grid-template-columns: 1fr; }
+  .rx-what { font-size: 15.5px; }
+  .viz-lab, .viz-val { font-size: 15px; }
+  .viz-flag { font-size: 13px; }
+}

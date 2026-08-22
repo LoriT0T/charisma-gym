@@ -255,7 +255,23 @@ function onMessage(ev) {
 async function endSession(auto) {
   if (App.ws && App.ws.readyState === 1 && !auto) sendJSON({ type: 'end' });
   // a finished call is an attempt, and attempts are the number that matters
-  if (App.transcript.length) { try { Store.addRep(); } catch {} }
+  if (App.transcript.length) {
+    try {
+      Store.addRep('call');
+      const fb = HUD.exportState();
+      if (fb && fb.length) {
+        const keys = Object.keys(fb[0].scores);
+        const scores = {};
+        for (const k of keys) scores[k] = Math.round(fb.reduce((x, f) => x + f.scores[k], 0) / fb.length);
+        Store.logCall({
+          persona: App.persona, scenario: App.scenario, scores,
+          overall: Math.round(fb.reduce((x, f) => x + f.overall, 0) / fb.length),
+          turns: App.transcript.filter((t) => t.role === 'user').length,
+          seconds: App.startedAt ? Math.round((Date.now() - App.startedAt) / 1000) : 0,
+        });
+      }
+    } catch (e) { console.warn('could not persist call', e); }
+  }
   App.live = false;
   setStatus('ended');
   stopTimer();

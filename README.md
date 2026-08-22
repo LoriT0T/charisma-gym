@@ -43,6 +43,84 @@ them by exact name, the recap teaches them. Examples: *The Verbal Swoop*,
 
 ---
 
+## The ecosystem
+
+The call is one module of ten. What makes this a system rather than a reference
+book is a closed loop:
+
+```
+call + field log  →  data  →  diagnosis  →  prescription  →  next rep
+                       ↑                                        │
+                       └────────────── measured ────────────────┘
+```
+
+| Module | Role |
+|---|---|
+| **Call a friend** | Live voice practice. The analyzer scores six dimensions per turn. |
+| **Warm up** | Articulators, consonant drills, 12 graded twisters, passages, load drills, guided timed session. |
+| **Words** | Upgrade pairs and a word list. Spaced repetition counting only *distinct* days. |
+| **Identity** | Behaviour → evidence → identity. Ladders and an evidence file. |
+| **Warmth & standards** | Warmth and standards as two independent axes, not one dial. |
+| **Read the room** | Cues with confidence tiers, plus six named myths. |
+| **Playbook** | The eight mechanisms everything else derives from. |
+| **Field log** | **The only channel from real life back in.** Predict → act → rate. |
+| **Lab** | Experiments on yourself. Confirmed results graduate into a personal playbook. |
+| **Signals** | Instruments: reps trend, dimension averages, calibration, weekly review. |
+
+### Why each piece exists
+
+- **Field log** — everything else is simulation. Without a reality input the
+  system is a closed loop that cannot detect its own drift. It also captures a
+  *prediction* before each interaction, which makes calibration measurable.
+- **Calibration** — expecting things to go worse than they do suppresses
+  attempts, and attempts are the only input fully under your control. The bias
+  is often more limiting than technique, so the engine fixes it first.
+- **Prescription engine** (`Coach.nextRep`) — ordered rules, first match wins,
+  returning exactly one action. A list of suggestions is a decision handed back
+  to the user.
+- **Lab** — practice becomes knowledge only when it is falsifiable. Three reps
+  is the floor; below that you are reading noise, which is how people conclude
+  a technique "doesn't work for me".
+- **Personal playbook** — over time it should replace the generic library.
+  Evidence about you beats advice about people in general. This is the sense in
+  which the app evolves.
+
+### Data model
+
+One **append-only event log**; every view is computed from it. Streaks, weekly
+reps, calibration and prescriptions are reducers over history, not stored
+counters. A new question about progress becomes a new reducer over data you
+already have, rather than a schema change and six months of waiting.
+
+Persisted to **localStorage**, not the server — the free-tier container wipes
+its disk on rebuild, so a server-side history would silently reset. Export and
+import are in the hub since this makes it per-device. v1 saves migrate
+automatically.
+
+### Charts
+
+Inline SVG, no libraries. Colours validated against surface `#14162b`:
+single-hue accent for magnitude, amber only as a non-adjacent highlight,
+diverging danger↔accent with a neutral midpoint. Green is never placed adjacent
+to amber — they are indistinguishable under protanopia (ΔE 3.0). The weakest
+dimension carries a text label, never colour alone.
+
+### Editorial rule
+
+Every claim in the content files carries a tier — `solid` / `mixed` / `weak` /
+`myth` — and popular-but-false claims are **named rather than omitted**: NLP eye
+cues, Mehrabian 7-38-55, nonverbal lie detection, power posing, crossed-arms
+mapping, deliberate mirroring. A charisma app that repeats folk psychology makes
+you worse at reading people, because it hands you confident wrong answers.
+
+### Assets are versioned
+
+`index.html` carries `?v=N` on every local script and stylesheet. Bump it when
+you change front-end files, or returning users get a half-old app from cache
+after a deploy.
+
+---
+
 ## Architecture
 
 ```

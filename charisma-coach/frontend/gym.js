@@ -21,13 +21,15 @@ const MODULES = [
   { id: 'warmth',   icon: '🔥', name: 'Warmth & standards', blurb: 'What "hot and cold" is actually pointing at, and why the manipulative version fails.' },
   { id: 'body',     icon: '👁️', name: 'Read the room',      blurb: 'Cues that survive scrutiny, how you carry yourself, and the myths to drop.' },
   { id: 'playbook', icon: '📐', name: 'Playbook',           blurb: 'The mechanisms underneath everything: the staircase, the ratchet, storytelling.' },
+  { id: 'field',    icon: '📓', name: 'Field log',          blurb: 'Log real interactions. The only channel from actual life back into the system.' },
+  { id: 'lab',      icon: '🧪', name: 'Lab',                blurb: 'Run experiments on yourself. Confirmed results graduate into your own playbook.' },
+  { id: 'signals',  icon: '📈', name: 'Signals',            blurb: 'Trends, calibration, and the weekly review that closes the loop.' },
 ];
 
 const Gym = {
   current: 'hub',
 
   boot() {
-    Store.touchDay();
     this.renderNav();
     this.renderHub();
     window.addEventListener('hashchange', () => this.routeFromHash());
@@ -74,6 +76,9 @@ const Gym = {
       warmth:   () => this.renderWarmth(),
       identity: () => this.renderIdentity(),
       playbook: () => this.renderPlaybook(),
+      field:    () => Evolve.renderField(),
+      lab:      () => Evolve.renderLab(),
+      signals:  () => Evolve.renderSignals(),
       hub:      () => this.renderHub(),
     }[id];
     if (painter) painter();
@@ -103,8 +108,9 @@ const Gym = {
     const s = Store.all();
     const learned = Store.learnedList().length;
     const reps = Store.repsThisWeek();
-    const mins = Math.round(s.drills.totalSeconds / 60);
+    const mins = Math.round(Store.drillSeconds() / 60);
     const ev = s.identity.evidence.length;
+    const rx = Coach.nextRep();
 
     byId('hub').innerHTML = `
       <div class="wrap">
@@ -115,11 +121,18 @@ const Gym = {
         </header>
 
         <div class="stat-strip">
-          ${this.statTile(s.vocab.streak, 'day streak')}
+          ${this.statTile(Store.streak(), 'day streak')}
           ${this.statTile(reps, 'reps this week', 'attempts you controlled')}
           ${this.statTile(learned, 'words locked in')}
           ${this.statTile(mins, 'minutes drilled')}
           ${this.statTile(ev, 'identity entries')}
+        </div>
+
+        <div class="panel rx-panel">
+          <div class="rx-why">${escHtml(rx.why)}</div>
+          <div class="rx-what">${escHtml(rx.what)}</div>
+          ${rx.detail ? `<div class="rx-detail">${escHtml(rx.detail)}</div>` : ''}
+          <button class="btn btn-primary btn-pill" data-go="${rx.go}">${escHtml(rx.cta)} →</button>
         </div>
 
         <div class="module-grid">

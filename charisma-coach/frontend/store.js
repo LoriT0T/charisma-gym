@@ -1,39 +1,76 @@
 /* =========================================================================
-   store.js — local persistence.
+   store.js — local persistence and the event log.
 
    Deliberately localStorage, not the server. The backend runs on an ephemeral
    free-tier container: its disk is wiped on every rebuild and every wake from
-   sleep. A vocabulary log that resets when the host restarts is worse than no
-   log at all, because you would trust it. The browser outlives the container.
+   sleep. A training history that resets when the host restarts is worse than
+   none, because you would trust it. The browser outlives the container.
 
-   Trade-off, stated plainly: this is per-device. Your phone and your laptop
-   keep separate progress. Export/import below is the bridge.
+   Trade-off, stated plainly: this is per-device. Export/import is the bridge.
+
+   ARCHITECTURE — one append-only event log, many derived views.
+   Every meaningful action writes an immutable event. Streaks, trends,
+   calibration and prescriptions are all *computed* from that log rather than
+   stored as their own mutable counters. This is what makes the system
+   evolvable: a new question about your progress becomes a new reducer over
+   history you already have, not a schema migration and six months of waiting
+   for fresh data.
    ========================================================================= */
 
-const STORE_KEY = 'goodcompany.v1';
+const STORE_KEY = 'goodcompany.v2';
+const LEGACY_KEY = 'goodcompany.v1';
 
 const BLANK = {
-  vocab:    { learned: {}, seen: {}, streak: 0, lastDay: null },
+  version: 2,
+  events:   [],          // append-only. the source of truth.
+  vocab:    { learned: {}, seen: {} },
   identity: { active: [], evidence: [] },
-  drills:   { log: [], totalSeconds: 0 },
-  reps:     {},          // { yyyy-mm-dd: count } — attempts, the thing you control
+  field:    [],          // real-world interaction log — reality -> system
+  experiments: [],       // hypothesis -> reps -> verdict
+  playbook: [],          // personally validated moves, promoted from experiments
+  reviews:  [],          // weekly closes of the loop
+  calls:    [],          // persisted analyzer output from live calls
   settings: { dailyWords: 5 },
 };
+
+const MAX_EVENTS = 4000;
 
 function _read() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return structuredClone(BLANK);
-    const parsed = JSON.parse(raw);
-    // shallow-merge so a new field in BLANK never breaks an old save
-    return { ...structuredClone(BLANK), ...parsed };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...structuredClone(BLANK), ...parsed };
+    }
+    return _migrateV1();
   } catch {
     return structuredClone(BLANK);
   }
 }
 
+/** Carry v1 data forward rather than stranding it. */
+function _migrateV1() {
+  const base = structuredClone(BLANK);
+  try {
+    const old = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null');
+    if (!old) return base;
+    if (old.vocab)    base.vocab    = { learned: old.vocab.learned || {}, seen: old.vocab.seen || {} };
+    if (old.identity) base.identity = old.identity;
+    // v1 kept counters; replay them as events so history is not lost
+    for (const [day, n] of Object.entries(old.reps || {})) {
+      for (let i = 0; i < n; i++) base.events.push({ type: 'rep', day, at: Date.parse(day) || Date.now(), payload: {} });
+    }
+    for (const d of (old.drills?.log || [])) {
+      base.events.push({ type: 'drill', day: d.day, at: d.at, payload: { name: d.name, seconds: d.seconds } });
+    }
+    _write(base);
+  } catch { /* a failed migration must never block the app */ }
+  return base;
+}
+
 function _write(data) {
   try {
+    if (data.events.length > MAX_EVENTS) data.events = data.events.slice(-MAX_EVENTS);
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
     return true;
   } catch (e) {
@@ -42,43 +79,67 @@ function _write(data) {
   }
 }
 
+const dayOf = (ts) => new Date(ts).toISOString().slice(0, 10);
+
 const Store = {
   all() { return _read(); },
 
-  update(fn) {
-    const d = _read();
-    fn(d);
-    _write(d);
-    return d;
-  },
+  update(fn) { const d = _read(); fn(d); _write(d); return d; },
 
-  today() {
-    return new Date().toISOString().slice(0, 10);
-  },
+  today() { return dayOf(Date.now()); },
 
-  /* ---------------- vocabulary ---------------- */
+  /* ===================== the log ===================== */
 
-  markSeen(word) {
+  logEvent(type, payload = {}) {
     return Store.update((d) => {
-      d.vocab.seen[word] = (d.vocab.seen[word] || 0) + 1;
+      d.events.push({ type, payload, day: Store.today(), at: Date.now() });
     });
   },
 
-  /** Spaced repetition, deliberately simple: a word is "learned" after it has
-   *  been recalled correctly on three separate days. Same-day repeats do not
-   *  count — massed practice inflates the count without building retention. */
+  events(type, sinceDays) {
+    const d = _read();
+    const cutoff = sinceDays ? Date.now() - sinceDays * 86400000 : 0;
+    return d.events.filter((e) =>
+      (!type || e.type === type) && e.at >= cutoff);
+  },
+
+  /* ===================== reps ===================== */
+
+  addRep(source = 'manual') { return Store.logEvent('rep', { source }); },
+
+  repsThisWeek() { return Store.events('rep', 7).length; },
+
+  /** Consecutive days with at least one logged event of any kind. */
+  streak() {
+    const days = new Set(_read().events.map((e) => e.day));
+    let n = 0;
+    for (let i = 0; ; i++) {
+      const day = dayOf(Date.now() - i * 86400000);
+      if (days.has(day)) { n++; continue; }
+      if (i === 0) continue;          // today not yet logged is fine
+      break;
+    }
+    return n;
+  },
+
+  /* ===================== vocabulary ===================== */
+
+  markSeen(word) {
+    return Store.update((d) => { d.vocab.seen[word] = (d.vocab.seen[word] || 0) + 1; });
+  },
+
+  /** A word locks in after correct recall on three DISTINCT days. Same-day
+   *  repeats do not count — massed practice inflates the count without
+   *  building retention, and a number you cannot trust is worse than none. */
   markRecalled(word, correct) {
+    Store.logEvent('vocab', { word, correct });
     return Store.update((d) => {
       const rec = d.vocab.learned[word] || { hits: 0, days: [], learnedOn: null };
       const day = Store.today();
       if (correct) {
-        if (!rec.days.includes(day)) {
-          rec.days.push(day);
-          rec.hits += 1;
-        }
+        if (!rec.days.includes(day)) { rec.days.push(day); rec.hits += 1; }
         if (rec.hits >= 3 && !rec.learnedOn) rec.learnedOn = day;
       } else {
-        // a miss costs one day of credit, never drops below zero
         rec.hits = Math.max(0, rec.hits - 1);
         rec.learnedOn = null;
       }
@@ -87,86 +148,159 @@ const Store = {
   },
 
   learnedList() {
-    const d = _read();
-    return Object.entries(d.vocab.learned)
-      .filter(([, r]) => r.learnedOn)
-      .map(([word, r]) => ({ word, ...r }));
+    return Object.entries(_read().vocab.learned)
+      .filter(([, r]) => r.learnedOn).map(([word, r]) => ({ word, ...r }));
   },
-
   inProgressList() {
-    const d = _read();
-    return Object.entries(d.vocab.learned)
-      .filter(([, r]) => !r.learnedOn && r.hits > 0)
-      .map(([word, r]) => ({ word, ...r }));
+    return Object.entries(_read().vocab.learned)
+      .filter(([, r]) => !r.learnedOn && r.hits > 0).map(([word, r]) => ({ word, ...r }));
   },
 
-  /* ---------------- identity ---------------- */
+  /* ===================== identity ===================== */
 
-  setActiveIdentities(list) {
-    return Store.update((d) => { d.identity.active = list; });
-  },
+  setActiveIdentities(list) { return Store.update((d) => { d.identity.active = list; }); },
 
   logEvidence(identity, text) {
+    Store.logEvent('identity', { identity, text });
     return Store.update((d) => {
-      d.identity.evidence.unshift({
-        identity, text, day: Store.today(), at: Date.now(),
-      });
+      d.identity.evidence.unshift({ identity, text, day: Store.today(), at: Date.now() });
       d.identity.evidence = d.identity.evidence.slice(0, 500);
     });
   },
+  evidenceFor(identity) { return _read().identity.evidence.filter((e) => e.identity === identity); },
 
-  evidenceFor(identity) {
-    return _read().identity.evidence.filter((e) => e.identity === identity);
+  /* ===================== drills ===================== */
+
+  logDrill(name, seconds) { return Store.logEvent('drill', { name, seconds }); },
+
+  drillSeconds() {
+    return Store.events('drill').reduce((a, e) => a + (e.payload.seconds || 0), 0);
   },
 
-  /* ---------------- drills ---------------- */
+  /* ===================== field log =====================
+     The only channel from real life back into the system. Everything else in
+     this app is simulation; this is the measurement. */
 
-  logDrill(name, seconds) {
+  logField(entry) {
+    Store.logEvent('field', { outcome: entry.outcome, technique: entry.technique });
+    Store.logEvent('rep', { source: 'field' });
     return Store.update((d) => {
-      d.drills.log.unshift({ name, seconds, day: Store.today(), at: Date.now() });
-      d.drills.log = d.drills.log.slice(0, 400);
-      d.drills.totalSeconds += seconds;
+      d.field.unshift({ ...entry, day: Store.today(), at: Date.now() });
+      d.field = d.field.slice(0, 400);
     });
   },
 
-  /* ---------------- reps (attempts) ---------------- */
+  field(sinceDays) {
+    const cutoff = sinceDays ? Date.now() - sinceDays * 86400000 : 0;
+    return _read().field.filter((f) => f.at >= cutoff);
+  },
 
-  addRep(n = 1) {
+  /** Calibration: mean |predicted − actual| on a 1–5 scale, plus direction.
+   *  Positive bias = you consistently expect it to go worse than it does,
+   *  which is the single most common and most costly pattern here. */
+  calibration() {
+    const withPred = _read().field.filter((f) => f.predicted != null && f.outcome != null);
+    if (!withPred.length) return null;
+    const errs = withPred.map((f) => f.outcome - f.predicted);
+    const mean = errs.reduce((a, b) => a + b, 0) / errs.length;
+    const absMean = errs.reduce((a, b) => a + Math.abs(b), 0) / errs.length;
+    return { n: withPred.length, bias: mean, error: absMean, points: withPred.slice(0, 40) };
+  },
+
+  /* ===================== experiments ===================== */
+
+  addExperiment(exp) {
+    Store.logEvent('experiment', { action: 'start', hypothesis: exp.hypothesis });
     return Store.update((d) => {
-      const day = Store.today();
-      d.reps[day] = (d.reps[day] || 0) + n;
+      d.experiments.unshift({
+        ...exp, id: 'x' + Date.now(), reps: 0, status: 'running',
+        started: Store.today(), at: Date.now(),
+      });
     });
   },
 
-  repsThisWeek() {
-    const d = _read();
-    let total = 0;
-    for (let i = 0; i < 7; i++) {
-      const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-      total += d.reps[day] || 0;
+  tickExperiment(id) {
+    return Store.update((d) => {
+      const x = d.experiments.find((e) => e.id === id);
+      if (x && x.status === 'running') x.reps += 1;
+    });
+  },
+
+  resolveExperiment(id, verdict, note) {
+    Store.logEvent('experiment', { action: 'resolve', verdict });
+    return Store.update((d) => {
+      const x = d.experiments.find((e) => e.id === id);
+      if (!x) return;
+      x.status = 'done'; x.verdict = verdict; x.note = note; x.ended = Store.today();
+      // a confirmed experiment graduates into the personal playbook — this is
+      // the mechanism by which generic advice is replaced by your own evidence
+      if (verdict === 'works') {
+        d.playbook.unshift({
+          move: x.hypothesis, technique: x.technique, note,
+          reps: x.reps, provenOn: Store.today(),
+        });
+      }
+    });
+  },
+
+  /* ===================== calls ===================== */
+
+  /** Persist what the analyzer already produced. Without this the app throws
+   *  away its highest-quality signal every time a call ends. */
+  logCall({ persona, scenario, scores, overall, turns, seconds }) {
+    Store.logEvent('call', { persona, overall });
+    return Store.update((d) => {
+      d.calls.unshift({ persona, scenario, scores, overall, turns, seconds,
+                        day: Store.today(), at: Date.now() });
+      d.calls = d.calls.slice(0, 200);
+    });
+  },
+
+  calls() { return _read().calls; },
+
+  /** Mean score per rubric dimension over the most recent n calls. */
+  dimensionAverages(n = 10) {
+    const cs = _read().calls.filter((c) => c.scores).slice(0, n);
+    if (!cs.length) return null;
+    const keys = Object.keys(cs[0].scores);
+    const out = {};
+    for (const k of keys) {
+      out[k] = Math.round(cs.reduce((a, c) => a + (c.scores[k] || 0), 0) / cs.length);
     }
-    return total;
+    return out;
   },
 
-  /* ---------------- day streak ---------------- */
+  /** Weakest dimension — the thing the prescription engine targets. */
+  weakestDimension() {
+    const avg = Store.dimensionAverages();
+    if (!avg) return null;
+    return Object.entries(avg).sort((a, b) => a[1] - b[1])[0];
+  },
 
-  touchDay() {
+  /* ===================== reviews ===================== */
+
+  addReview(text, snapshot) {
+    Store.logEvent('review', {});
     return Store.update((d) => {
-      const day = Store.today();
-      if (d.vocab.lastDay === day) return;
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      d.vocab.streak = d.vocab.lastDay === yesterday ? d.vocab.streak + 1 : 1;
-      d.vocab.lastDay = day;
+      d.reviews.unshift({ text, snapshot, day: Store.today(), at: Date.now() });
+      d.reviews = d.reviews.slice(0, 100);
     });
   },
+  reviews() { return _read().reviews; },
+  daysSinceReview() {
+    const r = _read().reviews[0];
+    if (!r) return null;
+    return Math.floor((Date.now() - r.at) / 86400000);
+  },
 
-  /* ---------------- portability ---------------- */
+  /* ===================== portability ===================== */
 
   exportJSON() { return JSON.stringify(_read(), null, 2); },
 
   importJSON(text) {
-    const parsed = JSON.parse(text);           // throws on bad input, caller catches
+    const parsed = JSON.parse(text);
     if (typeof parsed !== 'object' || parsed === null) throw new Error('not an object');
+    if (!Array.isArray(parsed.events)) throw new Error('missing event log');
     _write({ ...structuredClone(BLANK), ...parsed });
     return true;
   },
