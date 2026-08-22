@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -24,6 +25,23 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 log = logging.getLogger("main")
 
 app = FastAPI(title="Charisma Gym")
+
+# The frontend is also served from the shared GitHub Pages origin, so that this
+# app's storage sits alongside its siblings and the Dīwān hub can read it in
+# place. Those page loads call this backend cross-origin, which needs CORS.
+# The /ws endpoint is unaffected (WebSockets do not use CORS) and stays gated by
+# APP_PASSCODE, which remains the only thing standing between the internet and
+# the Gemini quota.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://lorit0t.github.io",
+        "http://localhost:8787", "http://127.0.0.1:8787",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 VOICES = {
     "Algieba": "Smooth", "Puck": "Upbeat", "Fenrir": "Excitable", "Charon": "Informative",

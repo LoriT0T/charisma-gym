@@ -91,7 +91,14 @@ function _write(data) {
   }
 }
 
-const dayOf = (ts) => new Date(ts).toISOString().slice(0, 10);
+/* LOCAL day key, not UTC. toISOString() is UTC, which pushes anything logged
+   between midnight and 01:00 BST onto the previous day — the sibling apps and
+   Dīwān all key on local dates, so a UTC key here made this app disagree with
+   the rest of the ecosystem about what happened today. */
+const dayOf = (ts) => {
+  const d = new Date(ts);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+};
 
 const Store = {
   all() { return _read(); },

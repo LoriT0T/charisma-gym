@@ -4,6 +4,26 @@
 
 const $ = (id) => document.getElementById(id);
 
+/* ---------------------------------------------------------------------------
+   Where the voice backend lives.
+
+   Nine of the ten modules are pure static and need no server at all. Only the
+   live call does. That is what lets the app be served from the shared
+   lorit0t.github.io origin — which is the whole point, because a path does not
+   scope web storage, so sitting on that origin is what makes this app's data
+   readable by Dīwān with no API, no paste, and no staleness.
+
+   Served from Pages -> address the backend absolutely.
+   Served from Render or localhost -> same origin, as before.
+   --------------------------------------------------------------------------- */
+const API_ORIGIN = location.hostname.endsWith('github.io')
+  ? 'https://charisma-gym.onrender.com'
+  : '';
+const api = (path) => API_ORIGIN + path;
+const wsBase = () => (API_ORIGIN
+  ? API_ORIGIN.replace(/^https:/, 'wss:')
+  : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
+
 const App = {
   cfg: null,
   persona: 'blend',
@@ -27,7 +47,7 @@ const App = {
 async function boot() {
   App.char = new Character($('character'), App.persona);
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch(api('/api/config'));
     App.cfg = await res.json();
   } catch (e) {
     // The offline modules (warm-up, words, identity, reading, playbook) do not
@@ -125,7 +145,7 @@ async function startSession() {
 
   if (App.cfg.passcode_required) {
     try {
-      const r = await fetch(`/api/checkcode?code=${encodeURIComponent(App.code)}`);
+      const r = await fetch(api(`/api/checkcode?code=${encodeURIComponent(App.code)}`));
       const j = await r.json();
       if (!j.ok) {
         toast('Wrong passcode — ask whoever set up the gym.', true);
@@ -158,8 +178,7 @@ async function startSession() {
   }
 
   // websocket
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const url = `${proto}://${location.host}/ws?persona=${App.persona}&scenario=${App.scenario}&voice=${encodeURIComponent(App.voice)}&code=${encodeURIComponent(App.code || '')}`;
+  const url = `${wsBase()}/ws?persona=${App.persona}&scenario=${App.scenario}&voice=${encodeURIComponent(App.voice)}&code=${encodeURIComponent(App.code || '')}`;
   App.ws = new WebSocket(url);
   App.ws.binaryType = 'arraybuffer';
   App.ws.onopen = () => setStatus('connecting');
@@ -284,7 +303,7 @@ async function endSession(auto) {
   $('debrief').classList.remove('hidden');
   $('debrief-body').innerHTML = '<div class="debrief-loading">The coach is writing your report card…</div>';
   try {
-    const res = await fetch('/api/debrief', {
+    const res = await fetch(api('/api/debrief'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

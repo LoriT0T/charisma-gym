@@ -17,11 +17,13 @@ COPY --chown=user charisma-coach/backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 COPY --chown=user charisma-coach/backend/  ./backend/
-COPY --chown=user charisma-coach/frontend/ ./frontend/
+COPY --chown=user docs/ ./frontend/
 
-# config.py derives FRONTEND_DIR as BACKEND_DIR.parent/"frontend" — /app/frontend. Correct here.
+# FRONTEND_DIR is set explicitly below; docs/ is the single copy of the frontend,
+# shared by this container and by GitHub Pages.
 ENV HOST=0.0.0.0 \
     PORT=7860 \
+    FRONTEND_DIR=/app/frontend \
     MEMORY_PATH=/home/user/data/memory.json
 
 RUN mkdir -p /home/user/data

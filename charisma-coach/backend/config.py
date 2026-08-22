@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = BACKEND_DIR.parent / "frontend"
+FRONTEND_DIR = Path(os.getenv("FRONTEND_DIR", BACKEND_DIR.parent.parent / "docs"))
 
 load_dotenv(BACKEND_DIR / ".env")
 
