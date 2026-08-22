@@ -148,7 +148,7 @@ fire-and-forget so it never blocks the voice stream.
 | `config.py` | All settings, read from `.env` |
 | `doctor.py` | **Diagnostic — run this first when anything breaks** |
 
-### Frontend — `charisma-coach/frontend/`
+### Frontend — `docs/` (served by Pages *and* copied into the container)
 
 Vanilla JS, no build step, no bundler.
 
