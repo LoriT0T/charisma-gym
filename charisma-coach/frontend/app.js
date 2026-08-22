@@ -30,7 +30,13 @@ async function boot() {
     const res = await fetch('/api/config');
     App.cfg = await res.json();
   } catch (e) {
-    toast('Could not reach the backend — is the server running?', true);
+    // The offline modules (warm-up, words, identity, reading, playbook) do not
+    // need the backend at all, so a dead server must not take the app down —
+    // it only disables the live call.
+    const note = $('setup-note');
+    if (note) note.textContent = 'Backend unreachable — the live call is unavailable, but every other module works offline.';
+    const btn = $('start-btn');
+    if (btn) { btn.disabled = true; btn.title = 'Backend unreachable'; }
     return;
   }
   HUD.init(App.cfg.rubric);
@@ -169,6 +175,7 @@ async function startSession() {
 
   $('setup').classList.add('hidden');
   $('app').classList.remove('hidden');
+  document.body.classList.add('in-call');   // hides the gym nav for the call view
 }
 
 function onMessage(ev) {
@@ -247,6 +254,8 @@ function onMessage(ev) {
 
 async function endSession(auto) {
   if (App.ws && App.ws.readyState === 1 && !auto) sendJSON({ type: 'end' });
+  // a finished call is an attempt, and attempts are the number that matters
+  if (App.transcript.length) { try { Store.addRep(); } catch {} }
   App.live = false;
   setStatus('ended');
   stopTimer();
@@ -352,4 +361,7 @@ function startAudioWatchdog() {
 }
 function stopAudioWatchdog() { clearInterval(watchdogInt); }
 
+/* The gym shell boots independently of the backend so the offline modules are
+   always available; the call config loads alongside it. */
+Gym.boot();
 boot();
