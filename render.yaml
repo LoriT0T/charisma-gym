@@ -1,4 +1,4 @@
-# Render Blueprint — Good Company.
+# Render Blueprint — Charisma Gym.
 # Import this repo at https://dashboard.render.com/blueprints and Render reads
 # this file: no manual service configuration needed.
 #
@@ -7,7 +7,7 @@
 
 services:
   - type: web
-    name: good-company
+    name: charisma-gym
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile

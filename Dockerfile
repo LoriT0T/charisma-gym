@@ -1,4 +1,4 @@
-# Good Company — container image.
+# Charisma Gym — container image.
 # Runs the real FastAPI backend unchanged: Gemini Live WebSocket bridge,
 # analyzer, debrief, memory. Nothing is downgraded for hosting.
 

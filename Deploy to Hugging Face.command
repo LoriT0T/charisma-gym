@@ -1,12 +1,12 @@
 #!/bin/zsh
-# Good Company — deploy to Hugging Face Spaces (the permanent link).
+# Charisma Gym — deploy to Hugging Face Spaces (the permanent link).
 # Safe to re-run: creates the Space if missing, otherwise just pushes.
 cd "$(dirname "$0")"
 
 HF="$PWD/charisma-coach/.venv/bin/hf"
-SPACE_NAME="good-company"
+SPACE_NAME="charisma-gym"
 
-echo "Good Company — deploy"
+echo "Charisma Gym — deploy"
 echo "=================================================="
 
 if [ ! -x "$HF" ]; then

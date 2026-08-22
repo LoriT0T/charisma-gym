@@ -1,12 +1,12 @@
 #!/bin/zsh
-# Good Company — health check.
+# Charisma Gym — health check.
 # Checks the PERMANENT Render deployment first (that's the real app), then the
 # optional local dev server. Run this any time something seems off.
 cd "$(dirname "$0")"
 
-LIVE_URL="https://good-company.onrender.com"
+LIVE_URL="https://charisma-gym.onrender.com"
 
-echo "Good Company — health check"
+echo "Charisma Gym — health check"
 echo "=================================================="
 
 # ---------- 1. The permanent deployment (what actually matters) ----------
@@ -27,7 +27,7 @@ if [ "$OK" = "1" ]; then
     echo "  OK    GEMINI_API_KEY is set on the host"
   else
     echo "  WARN  GEMINI_API_KEY missing on the host — calls will fail."
-    echo "        Fix: Render dashboard -> good-company -> Environment"
+    echo "        Fix: Render dashboard -> charisma-gym -> Environment"
   fi
   printf "%s" "$LIVE_URL" | pbcopy
   echo "        (link copied to clipboard)"

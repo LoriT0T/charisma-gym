@@ -92,7 +92,7 @@ const Gym = {
   renderNav() {
     byId('gym-nav').innerHTML = `
       <a class="brand-inline navhome" data-go="hub" href="#hub">
-        <span class="brand-name">Good <em>Company</em></span>
+        <span class="brand-name">Charisma <em>Gym</em></span>
       </a>
       <nav class="navlinks">
         ${MODULES.map((m) => `
@@ -115,7 +115,7 @@ const Gym = {
     byId('hub').innerHTML = `
       <div class="wrap">
         <header class="hub-head">
-          <h1>Good <em>Company</em></h1>
+          <h1>Charisma <em>Gym</em></h1>
           <p class="sub">A gym for the way you talk, read a room, and carry yourself.<br/>
           Pick something and do one rep. Reading this page is not a rep.</p>
         </header>

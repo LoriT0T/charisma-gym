@@ -1,5 +1,5 @@
 """
-Persona engine for Good Company.
+Persona engine for Charisma Gym.
 
 Three friends — original characters built from a style study of Russell
 Brand's and Craig Ferguson's conversational techniques — plus the technique

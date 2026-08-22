@@ -17,8 +17,10 @@
    for fresh data.
    ========================================================================= */
 
-const STORE_KEY = 'goodcompany.v2';
-const LEGACY_KEY = 'goodcompany.v1';
+const STORE_KEY = 'charismagym.v1';
+// Older keys, newest first. Renaming the product must never orphan a training
+// history — these are read once and migrated forward.
+const LEGACY_KEYS = ['goodcompany.v2', 'goodcompany.v1'];
 
 const BLANK = {
   version: 2,
@@ -42,18 +44,28 @@ function _read() {
       const parsed = JSON.parse(raw);
       return { ...structuredClone(BLANK), ...parsed };
     }
-    return _migrateV1();
+    return _migrateLegacy();
   } catch {
     return structuredClone(BLANK);
   }
 }
 
-/** Carry v1 data forward rather than stranding it. */
-function _migrateV1() {
+/** Carry any older save forward rather than stranding it. */
+function _migrateLegacy() {
   const base = structuredClone(BLANK);
   try {
-    const old = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null');
+    let old = null;
+    for (const k of LEGACY_KEYS) {
+      const raw = localStorage.getItem(k);
+      if (raw) { old = JSON.parse(raw); break; }
+    }
     if (!old) return base;
+    // goodcompany.v2 already had the event log; take it wholesale
+    if (Array.isArray(old.events)) {
+      const carried = { ...base, ...old, version: 2 };
+      _write(carried);
+      return carried;
+    }
     if (old.vocab)    base.vocab    = { learned: old.vocab.learned || {}, seen: old.vocab.seen || {} };
     if (old.identity) base.identity = old.identity;
     // v1 kept counters; replay them as events so history is not lost

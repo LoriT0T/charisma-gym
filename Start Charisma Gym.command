@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Good Company (Charisma Gym) — one-click start: server + public phone link
+# Charisma Gym — one-click start: server + public phone link
 cd "$(dirname "$0")"
 mkdir -p logs
 
@@ -65,7 +65,7 @@ if [ "$OK" = "1" ]; then
   printf "%s" "$URL" | pbcopy
   echo ""
   echo "=================================================="
-  echo "  Good Company is LIVE (verified)"
+  echo "  Charisma Gym is LIVE (verified)"
   echo "  Phone link (also copied to clipboard):"
   echo "  $URL"
   echo "  Passcode: ${DOOR:-(see backend/.env)}"

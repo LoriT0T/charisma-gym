@@ -1,5 +1,5 @@
 ---
-title: Good Company
+title: Charisma Gym
 emoji: 🎙️
 colorFrom: indigo
 colorTo: purple
@@ -9,14 +9,14 @@ pinned: false
 short_description: A voice call with a charismatic friend
 ---
 
-# Good Company
+# Charisma Gym
 
 A voice call with a charismatic friend. You talk about anything; a silent analyst
 in the background scores how you're talking and hands you back a recap afterwards.
 The user experiences a *friend*, never a coach — that framing is enforced hard in
 the prompts and is the core design constraint of the whole app.
 
-Folder name on disk is `CharismaGym`; the product name is **Good Company**.
+Lives at `~/CharismaGym`.
 
 ---
 
@@ -150,9 +150,19 @@ fire-and-forget so it never blocks the voice stream.
 
 ### Frontend — `charisma-coach/frontend/`
 
-Vanilla JS, no build step. `app.js` (orchestration), `audio.js` (mic capture +
-playback), `character.js` (animated avatar), `hud.js` (live score panel),
-`index.html`, `styles.css`.
+Vanilla JS, no build step, no bundler.
+
+| File | Role |
+|---|---|
+| `gym.js` | Hub, hash router, and the six reference/drill modules |
+| `evolve.js` | Prescription engine, field log, lab, signals, chart primitives |
+| `store.js` | Event log + localStorage persistence, with legacy migration |
+| `content-voice.js` | Articulation drills, twisters, passages, vocabulary |
+| `content-read.js` | Mechanisms, body-language cues, myths, warmth model, identity |
+| `app.js` | Live call orchestration: setup → call → debrief |
+| `audio.js` | Mic capture (16 kHz PCM) and playback (24 kHz) |
+| `character.js` | Animated persona avatar |
+| `hud.js` | In-call score panel and markdown rendering |
 
 ---
 
@@ -179,10 +189,10 @@ does not expire, does not depend on this Mac being awake, and never needs
 re-issuing:
 
 ```
-https://good-company.onrender.com
+https://charisma-gym.onrender.com
 ```
 
-Source of truth is GitHub: **https://github.com/LoriT0T/good-company** (public).
+Source of truth is GitHub: **https://github.com/LoriT0T/charisma-gym** (public).
 Render watches `main` and rebuilds on every push.
 
 **First deploy:** go to https://dashboard.render.com/blueprints → *New Blueprint
@@ -262,9 +272,9 @@ You'd need a **named tunnel**, which requires a domain on a Cloudflare account:
 
 ```bash
 cloudflared tunnel login
-cloudflared tunnel create good-company
-cloudflared tunnel route dns good-company goodcompany.yourdomain.com
-cloudflared tunnel run --url http://127.0.0.1:8787 good-company
+cloudflared tunnel create charisma-gym
+cloudflared tunnel route dns charisma-gym charismagym.yourdomain.com
+cloudflared tunnel run --url http://127.0.0.1:8787 charisma-gym
 ```
 
 That gives a fixed hostname that survives restarts. It still requires this Mac
