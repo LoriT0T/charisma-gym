@@ -187,7 +187,7 @@ cd ~/CharismaGym/charisma-coach/backend && ../.venv/bin/python -m uvicorn main:a
 | Piece | Host | Why |
 |---|---|---|
 | **UI + all your data** | GitHub Pages — https://lorit0t.github.io/charisma-gym/ | Every sibling app serves from `lorit0t.github.io`, and a path does not scope web storage. Sitting on that origin is what lets the **Dīwān** hub read `charismagym.v1` in place, with no API and no pasted export. |
-| **Voice backend only** | Render — charisma-gym.onrender.com | The live call needs a server for the Gemini bridge and the API key. Nine of the ten modules do not. Its `/` **307-redirects** to the Pages URL. |
+| **Voice backend only** | Render — good-company.onrender.com | The live call needs a server for the Gemini bridge and the API key. Nine of the ten modules do not. Its `/` **307-redirects** to the Pages URL. |
 
 **There is exactly one link: https://lorit0t.github.io/charisma-gym/**
 
@@ -238,8 +238,11 @@ does not expire, does not depend on this Mac being awake, and never needs
 re-issuing:
 
 ```
-https://charisma-gym.onrender.com
+https://good-company.onrender.com
 ```
+
+That hostname is not a leftover to be tidied — it is **the address**, decided on
+2026-08-23. See below for why chasing a prettier one is the wrong trade.
 
 Source of truth is GitHub: **https://github.com/LoriT0T/charisma-gym** (private).
 Render watches `main` and rebuilds on every push.
@@ -254,31 +257,31 @@ memory — with nothing downgraded for hosting.
 Secrets are **never committed**. `render.yaml` marks them `sync: false`, so Render
 prompts for the values and stores them encrypted. `.gitignore` blocks `.env`.
 
-### Why the URL says good-company — current state, 2026-08-23
+### The backend address is `good-company.onrender.com` — settled 2026-08-23
 
 | Host | State |
 |---|---|
-| `good-company.onrender.com` | **The live service.** Key ✅ door code ✅. Renamed to *charisma-gym* in the dashboard; the URL did not follow. |
-| `charisma-gym.onrender.com` | **Suspended duplicate.** Returns `503 Service Suspended`. |
+| `good-company.onrender.com` | **The service.** Key ✅ door code ✅. Display name is *charisma-gym*; the URL is this. |
+| `charisma-gym.onrender.com` | **Suspended duplicate.** Returns `503 Service Suspended`. Holding a subdomain and nothing else. |
 
-The frontend used to point at the duplicate, so every call failed and the app
-said *"No API key found"* — which sent the search to a key that was never
-missing. `app.js` resolves the backend now instead of assuming one, so this is
-cosmetic rather than broken.
-
-**A suspended service still holds its subdomain.** That is the whole reason the
-rename did not move the URL: `charisma-gym.onrender.com` was taken, so Render
-changed the display name and left the hostname alone. Suspending is not
+**A suspended service still holds its subdomain.** That is why renaming the live
+service in the dashboard did not move its URL — the name it wanted was taken, so
+Render changed the display name and left the hostname alone. Suspending is not
 releasing.
 
-To finish it, if you want the tidy URL: **delete** the suspended service — not
-suspend, delete — then re-apply the rename on the live one (Settings → Name;
-change it to anything, save, change it back). It has no key, no door code and an
-ephemeral memory file, so nothing is lost. The app then picks the canonical host
-by itself and drops the warning.
+The prettier URL could be recovered: delete the suspended service (not suspend —
+delete), then re-trigger the rename. **We are not doing that**, and the reason is
+worth writing down rather than rediscovering. A hostname is the one thing in this
+setup that must not move. It is compiled into `app.js`, it is what anything
+already bookmarked points at, and every change to it is a chance to end up with
+two half-working addresses again — which is exactly the mess this section exists
+to document. Trading a working, permanent address for a nicer-sounding one is a
+bad trade at any price, and the name is invisible to the user anyway: the only
+link anyone ever opens is the Pages URL.
 
-Leaving it as-is costs one ~0.4 s failed request per page load and a line of
-explanation on the setup screen. Nothing else.
+So `good-company` is not a leftover. It is the address, it is first in `BACKENDS`,
+and the app shows no warning for it. `charisma-gym.onrender.com` stays second in
+the list purely so the app keeps working if that subdomain is ever freed and used.
 
 **If a key ever goes on a service, `APP_PASSCODE` goes on it too.**
 `_code_ok()` returns True for everyone when the passcode is empty, so a key

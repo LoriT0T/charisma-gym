@@ -31,12 +31,20 @@ const $ = (id) => document.getElementById(id);
    call, which makes it the wrong answer even when it responds. Same idea as the
    model fallback chain in config.py, applied one layer out.
 
+   WHY THE ADDRESS IS `good-company`. The service was renamed in the dashboard
+   and the URL did not follow, because a suspended service still holds its
+   subdomain and the duplicate is suspended rather than deleted. Chasing the
+   prettier hostname would mean deleting that service and re-triggering a rename
+   — which changes the URL, and the URL is the one thing here that must not
+   move: it is compiled into this file and into anything already pointing at it.
+   So the old-sounding name is the real one, and it is first in the list. The
+   service behind it is correct — right code, right key, right door code.
+
    Cost is bounded. The healthy path fetches exactly one origin — the fallback
-   is only probed when the primary answers and says it has no key. The winner is
-   remembered so later loads go straight to it. */
+   is only probed when the primary answers and says it has no key. */
 const BACKENDS = [
-  'https://charisma-gym.onrender.com',   // the name the service should have
-  'https://good-company.onrender.com'    // the original, still holding the key
+  'https://good-company.onrender.com',   // THE address. See the note below.
+  'https://charisma-gym.onrender.com'    // kept in case that subdomain is ever freed
 ];
 const BACKEND_MEMO = 'charismagym.backend';
 
@@ -97,8 +105,10 @@ async function resolveBackend() {
         if (order[i] === BACKENDS[0]) localStorage.removeItem(BACKEND_MEMO);
         else localStorage.setItem(BACKEND_MEMO, order[i]);
       } catch { /* fine */ }
+      /* No note for the declared address — it is not an anomaly, it is where the
+         backend lives. A note only when something further down the list answered. */
       const note = order[i] === BACKENDS[0] ? null
-        : `Running against ${new URL(order[i]).hostname}. The service is renamed, but the charisma-gym URL is still held by the suspended duplicate — deleting that service frees it. Nothing is broken by this; the call works either way.`;
+        : `Running against ${new URL(order[i]).hostname} — not the usual address, but it has a key and the call works.`;
       return { cfg, origin: order[i], note };
     }
     if (!fallbackCfg) { fallbackCfg = cfg; fallbackOrigin = order[i]; }
