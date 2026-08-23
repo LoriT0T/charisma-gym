@@ -98,7 +98,7 @@ async function resolveBackend() {
         else localStorage.setItem(BACKEND_MEMO, order[i]);
       } catch { /* fine */ }
       const note = order[i] === BACKENDS[0] ? null
-        : `Running against ${new URL(order[i]).hostname} — the service still has its old name. The call works; see the README on renaming it properly.`;
+        : `Running against ${new URL(order[i]).hostname}. The service is renamed, but the charisma-gym URL is still held by the suspended duplicate — deleting that service frees it. Nothing is broken by this; the call works either way.`;
       return { cfg, origin: order[i], note };
     }
     if (!fallbackCfg) { fallbackCfg = cfg; fallbackOrigin = order[i]; }

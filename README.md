@@ -254,35 +254,37 @@ memory — with nothing downgraded for hosting.
 Secrets are **never committed**. `render.yaml` marks them `sync: false`, so Render
 prompts for the values and stores them encrypted. `.gitignore` blocks `.env`.
 
-### The duplicate is still live — current state, 2026-08-23
+### Why the URL says good-company — current state, 2026-08-23
 
-The rename described below happened, and **both services are still running**:
+| Host | State |
+|---|---|
+| `good-company.onrender.com` | **The live service.** Key ✅ door code ✅. Renamed to *charisma-gym* in the dashboard; the URL did not follow. |
+| `charisma-gym.onrender.com` | **Suspended duplicate.** Returns `503 Service Suspended`. |
 
-| Host | Key | Door code | What it is |
-|---|---|---|---|
-| `good-company.onrender.com` | ✅ | ✅ | The **original**. Everything works. |
-| `charisma-gym.onrender.com` | ❌ | ❌ | The **duplicate** the rename created. Empty. |
+The frontend used to point at the duplicate, so every call failed and the app
+said *"No API key found"* — which sent the search to a key that was never
+missing. `app.js` resolves the backend now instead of assuming one, so this is
+cosmetic rather than broken.
 
-The frontend pointed at the duplicate, so every call failed and the app said
-*"No API key found"* — which sent the search to a key that was never missing.
-`app.js` now resolves the backend instead of assuming one: it asks the canonical
-name first and falls through to a sibling that actually holds a key, so the app
-works today and needs no code change once the hosting is tidied.
+**A suspended service still holds its subdomain.** That is the whole reason the
+rename did not move the URL: `charisma-gym.onrender.com` was taken, so Render
+changed the display name and left the hostname alone. Suspending is not
+releasing.
 
-**To tidy it (dashboard only — three steps):**
+To finish it, if you want the tidy URL: **delete** the suspended service — not
+suspend, delete — then re-apply the rename on the live one (Settings → Name;
+change it to anything, save, change it back). It has no key, no door code and an
+ephemeral memory file, so nothing is lost. The app then picks the canonical host
+by itself and drops the warning.
 
-1. Delete the empty **charisma-gym** service. Nothing is lost; it has no key, no
-   door code, and its memory file is ephemeral anyway.
-2. On **good-company** → Settings → Name → `charisma-gym`. This moves the URL and
-   **keeps the environment**, which is the whole difference from editing
-   `render.yaml`.
-3. Reload the app. It picks the canonical host on its own, drops the warning, and
-   stops probing a second origin.
+Leaving it as-is costs one ~0.4 s failed request per page load and a line of
+explanation on the setup screen. Nothing else.
 
-**Do not put the key on the duplicate without also setting `APP_PASSCODE`.**
+**If a key ever goes on a service, `APP_PASSCODE` goes on it too.**
 `_code_ok()` returns True for everyone when the passcode is empty, so a key
-without a door code on a permanent public URL is an open Gemini account. The app
-now says so on the setup screen if it ever finds that combination.
+without a door code on a permanent public URL is an open Gemini account. The
+live service has both. The app says so on the setup screen if it ever finds the
+dangerous half of that pair on its own.
 
 ### Renaming the service — read before you touch `render.yaml`
 
