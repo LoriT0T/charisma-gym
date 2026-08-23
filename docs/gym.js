@@ -155,9 +155,12 @@ const Gym = {
 
         <div class="panel soft">
           <h3>Your data</h3>
-          <p class="fine">Progress is stored in this browser, not on the server — the host wipes its
-          disk on every rebuild, so a server-side log would silently reset. The cost is that this is
-          per-device. Move it across with these.</p>
+          <p class="fine">Progress lives in this browser and <b>syncs through your Dīwān account</b> —
+          every event, field entry, review, experiment and vocabulary day travels between devices
+          under the same sign-in as the rest of the ecosystem, and Dīwān reads it live for the
+          daily register and the weekly pulse. Nothing is kept on this app's own server, which
+          wipes its disk on every rebuild; the sync is the durable copy. Export/import below is
+          the manual bridge if you ever want a file in hand.</p>
           <div class="row-btns">
             <button class="btn btn-pill" id="exp-data">Export</button>
             <button class="btn btn-pill" id="imp-data">Import</button>

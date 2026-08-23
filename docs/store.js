@@ -6,7 +6,12 @@
    sleep. A training history that resets when the host restarts is worse than
    none, because you would trust it. The browser outlives the container.
 
-   Trade-off, stated plainly: this is per-device. Export/import is the bridge.
+   No longer per-device: Dīwān decomposes this store into records and syncs it
+   through the account (see diwan/js/shred.js — the gc shard covers the event
+   log, field, calls, reviews, experiments, vocab, identity, settings and
+   playbook). Export/import remains as the manual bridge. The one thing that
+   does not sync is the voice friend's memory.json — that lives on the call
+   backend and is ephemeral by hosting, not by design.
 
    ARCHITECTURE — one append-only event log, many derived views.
    Every meaningful action writes an immutable event. Streaks, trends,
