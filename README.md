@@ -191,6 +191,12 @@ cd ~/CharismaGym/charisma-coach/backend && ../.venv/bin/python -m uvicorn main:a
 
 **There is exactly one link: https://lorit0t.github.io/charisma-gym/**
 
+`app.js` does not hard-code the backend host. `BACKENDS` is an ordered list and
+the first origin that answers *with a key* wins — a backend with no key cannot
+place a call, which makes it the wrong answer even when it responds. The
+canonical name is always tried first and is never displaced by a cached winner,
+so the app returns to it by itself once the hosting is correct.
+
 That is not cosmetic. The training history lives in the browser, so a user who
 logs on one host today and the other tomorrow ends up with two localStorage
 silos and a split record — with no error to warn them. `CANONICAL_UI` on the
@@ -247,6 +253,36 @@ memory — with nothing downgraded for hosting.
 
 Secrets are **never committed**. `render.yaml` marks them `sync: false`, so Render
 prompts for the values and stores them encrypted. `.gitignore` blocks `.env`.
+
+### The duplicate is still live — current state, 2026-08-23
+
+The rename described below happened, and **both services are still running**:
+
+| Host | Key | Door code | What it is |
+|---|---|---|---|
+| `good-company.onrender.com` | ✅ | ✅ | The **original**. Everything works. |
+| `charisma-gym.onrender.com` | ❌ | ❌ | The **duplicate** the rename created. Empty. |
+
+The frontend pointed at the duplicate, so every call failed and the app said
+*"No API key found"* — which sent the search to a key that was never missing.
+`app.js` now resolves the backend instead of assuming one: it asks the canonical
+name first and falls through to a sibling that actually holds a key, so the app
+works today and needs no code change once the hosting is tidied.
+
+**To tidy it (dashboard only — three steps):**
+
+1. Delete the empty **charisma-gym** service. Nothing is lost; it has no key, no
+   door code, and its memory file is ephemeral anyway.
+2. On **good-company** → Settings → Name → `charisma-gym`. This moves the URL and
+   **keeps the environment**, which is the whole difference from editing
+   `render.yaml`.
+3. Reload the app. It picks the canonical host on its own, drops the warning, and
+   stops probing a second origin.
+
+**Do not put the key on the duplicate without also setting `APP_PASSCODE`.**
+`_code_ok()` returns True for everyone when the passcode is empty, so a key
+without a door code on a permanent public URL is an open Gemini account. The app
+now says so on the setup screen if it ever finds that combination.
 
 ### Renaming the service — read before you touch `render.yaml`
 

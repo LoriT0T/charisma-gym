@@ -16,16 +16,104 @@ const $ = (id) => document.getElementById(id);
    Served from Pages -> address the backend absolutely.
    Served from Render or localhost -> same origin, as before.
    --------------------------------------------------------------------------- */
-const API_ORIGIN = location.hostname.endsWith('github.io')
-  ? 'https://charisma-gym.onrender.com'
-  : '';
+/* The backend is RESOLVED, not assumed.
+
+   On 2026-08-22 the Render service was renamed by editing `name:` in
+   render.yaml. Render keys blueprint services by name, so that did not rename
+   anything — it stood up a SECOND service and left the original running. The
+   duplicate came up without GEMINI_API_KEY, because secrets marked sync:false
+   are not carried over. This file pointed at the new name, so every call failed
+   and the app reported "No API key found" — sending you to look for a key that
+   was never missing. It was on the other host the whole time.
+
+   So the origin is now a short ordered list, resolved once at boot: take the
+   first backend that answers WITH a key. A backend with no key cannot place a
+   call, which makes it the wrong answer even when it responds. Same idea as the
+   model fallback chain in config.py, applied one layer out.
+
+   Cost is bounded. The healthy path fetches exactly one origin — the fallback
+   is only probed when the primary answers and says it has no key. The winner is
+   remembered so later loads go straight to it. */
+const BACKENDS = [
+  'https://charisma-gym.onrender.com',   // the name the service should have
+  'https://good-company.onrender.com'    // the original, still holding the key
+];
+const BACKEND_MEMO = 'charismagym.backend';
+
+const LOCAL_ORIGIN = !location.hostname.endsWith('github.io');
+let API_ORIGIN = LOCAL_ORIGIN ? '' : BACKENDS[0];
+
 const api = (path) => API_ORIGIN + path;
 const wsBase = () => (API_ORIGIN
   ? API_ORIGIN.replace(/^https:/, 'wss:')
   : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
 
+/** One candidate's /api/config, or null. `patient` waits out a cold start. */
+async function askBackend(origin, patient) {
+  const ctl = new AbortController();
+  /* Render's free tier sleeps after 15 minutes and takes about a minute to wake,
+     so the first candidate is given as long as it needs. A fallback probe is
+     already the unhappy path and must not hold boot open indefinitely. */
+  const t = patient ? null : setTimeout(() => ctl.abort(), 45000);
+  try {
+    const res = await fetch(origin + '/api/config', { signal: ctl.signal });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+  finally { if (t) clearTimeout(t); }
+}
+
+/**
+ * Decide which backend to talk to. Returns { cfg, origin, note } where `note`
+ * describes anything the user needs to know about the choice.
+ */
+async function resolveBackend() {
+  if (LOCAL_ORIGIN) return { cfg: await askBackend('', true), origin: '', note: null };
+
+  /* The canonical name is always asked FIRST, never reordered by what worked
+     last time. Remembering a winning sibling and going straight back to it looks
+     like a saving and is a trap: the app would pin itself to the old host and
+     keep using it after the rename is done, still showing the warning, with
+     nothing to make it look again. Preference order is a decision, not a cache.
+
+     What the memo is for: ordering the fallbacks among themselves, so a sibling
+     known to work is tried before one that has never answered. */
+  const order = [BACKENDS[0], ...rest()];
+  function rest() {
+    const others = BACKENDS.slice(1);
+    try {
+      const memo = localStorage.getItem(BACKEND_MEMO);
+      if (memo && others.includes(memo)) return [memo, ...others.filter(o => o !== memo)];
+    } catch { /* storage blocked; declared order is fine */ }
+    return others;
+  }
+
+  let fallbackCfg = null, fallbackOrigin = null;
+  for (let i = 0; i < order.length; i++) {
+    const cfg = await askBackend(order[i], i === 0);
+    if (!cfg) continue;
+    if (cfg.has_key || cfg.mock_mode) {
+      try {
+        if (order[i] === BACKENDS[0]) localStorage.removeItem(BACKEND_MEMO);
+        else localStorage.setItem(BACKEND_MEMO, order[i]);
+      } catch { /* fine */ }
+      const note = order[i] === BACKENDS[0] ? null
+        : `Running against ${new URL(order[i]).hostname} — the service still has its old name. The call works; see the README on renaming it properly.`;
+      return { cfg, origin: order[i], note };
+    }
+    if (!fallbackCfg) { fallbackCfg = cfg; fallbackOrigin = order[i]; }
+  }
+
+  /* Every backend answered and none had a key. Show the app rather than a blank
+     screen, and say the true thing about why the call is off. */
+  if (fallbackCfg) return { cfg: fallbackCfg, origin: fallbackOrigin, note: null };
+  return { cfg: null, origin: null, note: null };
+}
+
 const App = {
   cfg: null,
+  origin: null,            // which backend resolveBackend() settled on
+  originNote: null,        // anything the user should know about that choice
   persona: 'blend',
   scenario: 'freestyle',
   voice: '',
@@ -46,19 +134,21 @@ const App = {
 
 async function boot() {
   App.char = new Character($('character'), App.persona);
-  try {
-    const res = await fetch(api('/api/config'));
-    App.cfg = await res.json();
-  } catch (e) {
+  const found = await resolveBackend();
+  if (!found.cfg) {
     // The offline modules (warm-up, words, identity, reading, playbook) do not
     // need the backend at all, so a dead server must not take the app down —
     // it only disables the live call.
     const note = $('setup-note');
-    if (note) note.textContent = 'Backend unreachable — the live call is unavailable, but every other module works offline.';
+    if (note) note.textContent = 'Backend unreachable — the live call is unavailable, but every other module works offline. Render sleeps after 15 minutes idle and takes about a minute to wake, so this may just need a reload.';
     const btn = $('start-btn');
     if (btn) { btn.disabled = true; btn.title = 'Backend unreachable'; }
     return;
   }
+  App.cfg = found.cfg;
+  App.origin = found.origin;
+  App.originNote = found.note;
+  if (found.origin !== null) API_ORIGIN = found.origin;
   HUD.init(App.cfg.rubric);
 
   // persona cards — each with a live mini portrait
@@ -98,10 +188,27 @@ async function boot() {
 
   if (App.cfg.passcode_required) $('passcode-field').classList.remove('hidden');
 
+  /* Say the true thing. The old message here named backend/.env unconditionally,
+     which is only where the key lives when you are running this on your own Mac —
+     on the hosted app there is no .env, and pointing at one is how a working key
+     sitting in Render's environment gets hunted for in the wrong place. */
+  const hosted = !LOCAL_ORIGIN;
+  const note = $('setup-note');
   if (App.cfg.mock_mode) {
-    $('setup-note').textContent = 'MOCK MODE is on — a scripted coach, no API calls. Set MOCK_MODE=0 in backend/.env for the real thing.';
+    note.textContent = 'MOCK MODE is on — a scripted coach, no API calls. Set MOCK_MODE=0 for the real thing.';
   } else if (!App.cfg.has_key) {
-    $('setup-note').textContent = '⚠ No API key found. Add GEMINI_API_KEY to backend/.env (free at aistudio.google.com/apikey).';
+    note.innerHTML = hosted
+      ? `⚠ <b>${esc(new URL(API_ORIGIN).hostname)} has no API key.</b> Set <code>GEMINI_API_KEY</code> on that service in the Render dashboard — Environment → Add. Every other module works without it.`
+      : '⚠ No API key found. Add GEMINI_API_KEY to backend/.env (free at aistudio.google.com/apikey).';
+    const b = $('start-btn'); if (b) { b.disabled = true; b.title = 'No API key on the backend'; }
+  } else if (hosted && !App.cfg.passcode_required) {
+    /* An unguarded key on a public URL. The backend's own gate returns True for
+       everyone when APP_PASSCODE is empty, so this is not a theoretical risk:
+       the address is permanent and public, and anyone who loads it talks to your
+       friend, shares its memory, and spends your quota. */
+    note.innerHTML = `⚠ <b>This backend has a key and no door code.</b> ${esc(new URL(API_ORIGIN).hostname)} is public, so anyone with the link can place calls on your quota. Set <code>APP_PASSCODE</code> on it in the Render dashboard.`;
+  } else if (App.originNote) {
+    note.textContent = App.originNote;
   }
 
   $('start-btn').addEventListener('click', startSession);
