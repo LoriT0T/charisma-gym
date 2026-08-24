@@ -20,6 +20,16 @@
 
 const MECHANISMS = [
   {
+    id: 'xplusone',
+    name: 'X + 1',
+    tier: 'solid',
+    source: 'The generator behind every mechanism below; the observable regularity is Aron 1997 / Gottman bids by another road',
+    claim: 'Every situation has X — the minimum required behaviour, the socially acceptable script. Charisma is not being impressive; it is X plus one small intentional act past the script, every time. The +1 is always tiny.',
+    detail:
+      'X in an elevator is silence; the +1 is one observation to a stranger. X with a cashier is "thank you"; the +1 is one human comment. X with a friend is the expected response; the +1 is one deeper question. The +1 must break the script only just enough to be noticed — a compliment, a real question, a named detail. Two failure modes: stopping at X (invisible, forgettable — people do not remember 100%, they remember 101%), and reaching for +5 (performing, which reads as need). Every other mechanism in this playbook is a shaped +1: the staircase escalates disclosure one notch past the expected level, the second question goes one question past where the script ends, the callback adds one remembered detail nobody asked you to keep. When you cannot derive the move, derive the +1: what is X here, and what is the smallest intentional step past it?',
+    trap: 'Making the +1 big. The moment it costs the other person something to receive, it has stopped being charisma and started being a bid for attention. Tiny, repeatable, daily — the compounding is the point.',
+  },
+  {
     id: 'escalation',
     name: 'The staircase',
     tier: 'solid',

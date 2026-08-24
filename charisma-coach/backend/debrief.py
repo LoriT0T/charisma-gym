@@ -39,7 +39,7 @@ A compact table: each rubric dimension, average score for the call, one-phrase r
 Exactly 2 Brand-school moves and 2 Ferguson-school moves, each: **Technique Name** (source) — one sentence on precisely where in THIS conversation it would have been delicious, quoting the moment.
 
 ## Three things to try
-3 numbered, concrete, playful things to try in their next conversation with anyone (e.g. "Go one whole coffee chat without saying sorry", "Answer one question non-literally", "Hold one two-second pause and just smile").
+3 numbered, concrete, playful things to try in their next conversation with anyone (e.g. "Go one whole coffee chat without saying sorry", "Answer one question non-literally", "Hold one two-second pause and just smile"). Frame each as an X+1: name the situation's required minimum (X), then the one small step past it — the step must be tiny, never a performance.
 
 ## From {{friend_name}}
 2-3 sentences in the friend's voice — affectionate, memorable, a little theatrical. Sign off with their name.

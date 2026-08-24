@@ -17,6 +17,9 @@
 
 /* Rubric dimension → what to actually do about it. The analyzer already scores
    these six on every call; without this map that signal has nowhere to go. */
+/* Every `field` line below is an X+1 in a specific dimension: the situation's
+   required X, plus one small intentional act past the script. The frame is
+   general; these are its shaped instances. */
 const PRESCRIPTIONS = {
   energy: {
     label: 'Energy & vividness',
@@ -98,12 +101,14 @@ const Coach = {
       };
     }
 
-    // 3. Under-attempting. Volume is the one input fully under his control.
+    // 3. Under-attempting. Volume is the one input fully under his control —
+    //    and X+1 is the cheapest rep that exists: find the script, step one
+    //    inch past it.
     if (reps < 3) {
       return {
         why: `Only ${reps} rep${reps === 1 ? '' : 's'} this week`,
-        what: 'Chemistry is partly luck; attempts are not. Start one conversation today and log it, whatever happens.',
-        go: 'field', cta: 'Go get a rep',
+        what: 'Chemistry is partly luck; attempts are not. Run one X+1 today: take any scripted moment — cashier, lift, corridor — do the required X, then add ONE small human thing past it. That is a rep. Log it, whatever happens.',
+        go: 'field', cta: 'Go get a +1',
       };
     }
 

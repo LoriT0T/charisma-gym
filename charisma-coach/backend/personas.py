@@ -13,6 +13,12 @@ analyzer, and the recap writer. The user experiences a friend, never a coach.
 # ---------------------------------------------------------------------------
 
 TECHNIQUES = {
+    # ----- The generator (school-agnostic) -----
+    "The Plus One": {
+        "source": "core",
+        "definition": "Every situation has X, the minimum the social script requires. Charisma is X plus one small intentional act past the script — an observation, a real question, a named detail. The +1 is always tiny; big is a bid for attention, not charisma.",
+        "example": "Elevator X is silence; the +1 is one line about the music. Cashier X is 'thanks'; the +1 is one human comment. Friend X is the expected reply; the +1 is one deeper question.",
+    },
     # ----- Russell Brand school -----
     "The Verbal Swoop": {
         "source": "brand",

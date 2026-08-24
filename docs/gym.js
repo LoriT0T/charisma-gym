@@ -150,7 +150,12 @@ const Gym = {
           Chemistry is partly luck — right person, right mood, right moment. The only lever that
           reliably moves is how many honest attempts you make. So the number this app cares about
           most is <em>reps this week</em>, not how any single conversation went.</p>
-          <button class="btn btn-pill" id="add-rep">+1 rep — I started a conversation</button>
+          <p class="fine"><b>The unit of a rep is X&nbsp;+&nbsp;1</b>: every situation has X, the
+          minimum the script requires — silence in a lift, "thanks" at a till, the expected answer
+          to a friend. Do X, then add <em>one</em> small intentional thing past it. An observation,
+          a real question, a named detail. Tiny on purpose: people don't remember 100%, they
+          remember 101%, and the compounding is the point.</p>
+          <button class="btn btn-pill" id="add-rep">+1 rep — I stepped past the script</button>
         </div>
 
         <div class="panel soft">
