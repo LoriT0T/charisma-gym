@@ -122,6 +122,35 @@ class PcmPlayer {
     this.sources = new Set();
     this.enqueuedBytes = 0;
     this._fft = new Uint8Array(this.analyser.frequencyBinCount);
+
+    /* ── the jitter buffer ──
+       The old scheduler gave each network chunk a 60ms cushion. On a fast
+       desktop connection chunks arrive in bursts well ahead of playback and
+       the cushion never matters; on a phone with real latency each chunk
+       lands AFTER the previous one has finished — a fresh 60ms gap between
+       every chunk, which the ear hears as speech chopped word by word.
+
+       Two changes. Chunks are coalesced into ~180ms buffers before being
+       scheduled, so scheduling overhead and boundary artefacts drop by an
+       order of magnitude. And the cushion is adaptive: it starts generous,
+       and every underrun teaches it — one brief pause per bad patch of
+       network, instead of a stutter on every word. */
+    this.pending = [];          // Int16Arrays waiting to be coalesced
+    this.pendingLen = 0;
+    this.lead = 0.30;           // current cushion, seconds
+    this.underruns = 0;
+    this._flushTimer = null;
+
+    /* iOS suspends the context on audio-session interruptions (the mic
+       starting, a notification sound, a route change). currentTime freezes
+       while suspended, so on resume the playhead is rebuilt rather than
+       trusted. */
+    this.ctx.addEventListener('statechange', () => {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+        this.playhead = 0;
+      }
+    });
   }
 
   resume() { if (this.ctx.state === 'suspended') this.ctx.resume(); }
@@ -149,22 +178,56 @@ class PcmPlayer {
     this.enqueuedBytes += arrayBuffer.byteLength;
     const int16 = new Int16Array(arrayBuffer);
     if (!int16.length) return;
-    const f32 = new Float32Array(int16.length);
-    for (let i = 0; i < int16.length; i++) f32[i] = int16[i] / 32768;
-    const buf = this.ctx.createBuffer(1, f32.length, this.rate);
-    buf.copyToChannel(f32, 0);
+    this.pending.push(int16);
+    this.pendingLen += int16.length;
+
+    /* Ship a coalesced buffer once ~180ms is gathered; a short timer catches
+       the tail of an utterance that never fills the batch. */
+    const BATCH = Math.floor(this.rate * 0.18);
+    if (this.pendingLen >= BATCH) this._ship();
+    else if (!this._flushTimer) {
+      this._flushTimer = setTimeout(() => { this._flushTimer = null; this._ship(); }, 90);
+    }
+  }
+
+  _ship() {
+    if (!this.pendingLen) return;
+    const all = new Float32Array(this.pendingLen);
+    let o = 0;
+    for (const c of this.pending) {
+      for (let i = 0; i < c.length; i++) all[o + i] = c[i] / 32768;
+      o += c.length;
+    }
+    this.pending = [];
+    this.pendingLen = 0;
+
+    const buf = this.ctx.createBuffer(1, all.length, this.rate);
+    buf.copyToChannel(all, 0);
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.connect(this.analyser);
+
     const now = this.ctx.currentTime;
-    const at = Math.max(now + 0.06, this.playhead);
-    src.start(at);
-    this.playhead = at + buf.duration;
+    if (this.playhead <= now) {
+      /* Underrun: the network fell behind the voice. Rebuild the cushion —
+         and grow it a little each time, so a genuinely slow link converges on
+         one pause per rough patch rather than a stutter per word. */
+      if (this.playhead !== 0) {
+        this.underruns++;
+        this.lead = Math.min(0.6, this.lead + 0.08);
+      }
+      this.playhead = now + this.lead;
+    }
+    src.start(this.playhead);
+    this.playhead += buf.duration;
     this.sources.add(src);
     src.onended = () => this.sources.delete(src);
   }
 
   flush() {
+    if (this._flushTimer) { clearTimeout(this._flushTimer); this._flushTimer = null; }
+    this.pending = [];
+    this.pendingLen = 0;
     for (const s of this.sources) { try { s.stop(); } catch (_) {} }
     this.sources.clear();
     this.playhead = 0;
