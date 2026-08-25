@@ -174,7 +174,13 @@ const Gym = {
         </div>
       </div>`;
 
-    byId('add-rep').onclick = () => { Store.addRep(); this.renderHub(); toast('Logged. That is the only number that matters.'); };
+    byId('add-rep').onclick = () => {
+      const ok = Store.addRep();
+      this.renderHub();
+      /* A toast that says "Logged" over a failed write is the one lie this
+         app must never tell — the rep count is its whole currency. */
+      toast(ok === false ? 'Could not save — storage is full or blocked.' : 'Logged. That is the only number that matters.');
+    };
     byId('exp-data').onclick = () => {
       const box = byId('data-box');
       box.classList.remove('hidden');
