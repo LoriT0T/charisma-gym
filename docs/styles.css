@@ -273,6 +273,12 @@ select:focus, input:focus { outline: 2px solid var(--accent-soft); border-color:
 }
 .src-brand .tip-badge { color: #f0a2c0; border-color: rgba(213,81,129,0.5); background: rgba(213,81,129,0.12); }
 .src-ferguson .tip-badge { color: #ecc06a; border-color: rgba(201,133,0,0.5); background: rgba(201,133,0,0.12); }
+.tip-card.src-field { border-left-color: #5aa8d8; }
+.src-field .tip-badge { color: #9cc9e8; border-color: rgba(90,168,216,0.5); background: rgba(90,168,216,0.12); }
+.tip-pulled { font-size: 12px; color: #9fdc9f; margin-top: 5px; }
+.tip-pulled b { font-weight: 600; }
+.tip-friend { font-size: 12px; color: var(--text-muted); margin-top: 3px; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 5px; }
+.tip-friend b { color: #9cc9e8; font-weight: 600; }
 .tip-score { margin-left: auto; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .tip-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 .tip-strength { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.45; }

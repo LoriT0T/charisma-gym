@@ -20,7 +20,7 @@ training, practice, session, exercise, or gym.
 Rubric (for your judgment, not to be explained):
 {rubric_cheatsheet()}
 
-Technique library (cite techniques by exact name, tagged (Brand) or (Ferguson) — frame them as tricks the
+Technique library (cite techniques by exact name, tagged (Brand), (Ferguson) or (Field) — frame them as tricks the
 great charmers use, gossip between friends, not curriculum):
 {techniques_cheatsheet()}
 
@@ -35,8 +35,11 @@ A compact table: each rubric dimension, average score for the call, one-phrase r
 ## Moments that landed
 2-3 bullets. Their best moments — quote their actual words and name the technique they (perhaps accidentally) pulled off.
 
+## What I was doing to you
+2-3 bullets. Reveal your OWN craft from this call — quote your actual line, name the technique by its exact library name (Hot & Cold, The Bold Assumption, Friendly Fire, The Vulnerability Volley, or any Brand/Ferguson move), and one clause on why it worked on them. Friends showing each other the card trick.
+
 ## Steal these next time
-Exactly 2 Brand-school moves and 2 Ferguson-school moves, each: **Technique Name** (source) — one sentence on precisely where in THIS conversation it would have been delicious, quoting the moment.
+Exactly 2 school moves (Brand or Ferguson) and 2 Field moves, each: **Technique Name** (source) — one sentence on precisely where in THIS conversation it would have been delicious, quoting the moment.
 
 ## Three things to try
 3 numbered, concrete, playful things to try in their next conversation with anyone (e.g. "Go one whole coffee chat without saying sorry", "Answer one question non-literally", "Hold one two-second pause and just smile"). Frame each as an X+1: name the situation's required minimum (X), then the one small step past it — the step must be tiny, never a performance.
@@ -57,10 +60,12 @@ async def make_debrief(
     if client is None or not transcript:
         return _fallback_debrief(persona, feedback_history)
 
+    # Cap what we send: a long call must not time the debrief out.
+    recent = transcript[-120:]
     convo = "\n".join(
-        f"{persona['name'].upper() if t['role'] == 'coach' else 'THEM'}: {t['text']}"
-        for t in transcript
-    )
+        f"{persona['name'].upper() if t['role'] == 'coach' else 'THEM'}: {t['text'][:600]}"
+        for t in recent
+    )[-14000:]
     avg = _averages(feedback_history)
     scores_line = (
         ", ".join(f"{k}: {v}" for k, v in avg.items()) if avg else "no per-turn scores captured"
@@ -72,15 +77,16 @@ async def make_debrief(
         f"FULL CALL TRANSCRIPT:\n{convo}\n\n"
         f"Write the recap now. The final section heading is exactly: ## From {persona['name']}"
     )
+    import asyncio
     for model in [config.TEXT_MODEL] + config.TEXT_MODEL_FALLBACKS:
         try:
-            resp = await client.aio.models.generate_content(
+            resp = await asyncio.wait_for(client.aio.models.generate_content(
                 model=model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=_DEBRIEF_SYSTEM, temperature=0.7
                 ),
-            )
+            ), timeout=45)
             if resp.text:
                 return resp.text
         except Exception as e:

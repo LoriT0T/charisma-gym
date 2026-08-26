@@ -38,6 +38,9 @@ class TurnAnalysis(BaseModel):
     technique: str = Field(description="EXACT name of one technique from the library that would most improve this turn")
     tip: str = Field(description="One punchy, specific, actionable sentence applying that technique to what they just said. Max 28 words.")
     filler_count: int = Field(ge=0, description="Count of filler words (um, uh, like, you know, sort of, I guess) in the turn")
+    pulled_off: str = Field(description="EXACT library name of a technique the speaker's turn actually demonstrated, or empty string if none genuinely applies")
+    friend_move: str = Field(description="EXACT library name of the technique the FRIEND's most recent turn demonstrated, or empty string")
+    friend_note: str = Field(description="Max 14 words: how the friend deployed that move, so the speaker can steal it. Empty if friend_move is empty.")
 
 
 _ANALYZER_SYSTEM = f"""You are a world-class conversation analyst, scoring ONE turn spoken aloud by a person practicing the art of talking.
@@ -54,6 +57,7 @@ Rules:
 - This is spoken conversation, not writing: reward vividness, play, risk, warmth; punish hedging, fillers, resume-speak, ignoring the partner.
 - Be honest and a little tough — inflated scores help nobody. Vary scores meaningfully between dimensions.
 - The tip must be concrete enough to try in the very next sentence they speak, and reference their actual words/topic.
+- Name craft on BOTH sides of the net: `pulled_off` is the technique the trainee's own turn genuinely demonstrated (empty if none — do not flatter), and `friend_move`/`friend_note` name what the friend's last turn was doing (the friend plays deliberate field-craft — Hot & Cold, The Bold Assumption, Friendly Fire, The Vulnerability Volley — as well as the Brand and Ferguson moves; catching it is half the training).
 - Answer in the same spirit regardless of the trainee's language; write strength/tip in the trainee's language (default English)."""
 
 
@@ -118,6 +122,15 @@ class Analyst:
                         "text": analysis.tip,
                     },
                     "filler_count": analysis.filler_count,
+                    "pulled_off": _closest_technique(analysis.pulled_off) if analysis.pulled_off.strip() else "",
+                    "friend": (
+                        {
+                            "technique": (fm := _closest_technique(analysis.friend_move)),
+                            "source": TECHNIQUES[fm]["source"],
+                            "note": analysis.friend_note.strip(),
+                        }
+                        if analysis.friend_move.strip() else None
+                    ),
                 }
             except Exception as e:  # model missing, quota, parse error...
                 last_err = e

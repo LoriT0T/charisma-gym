@@ -465,24 +465,84 @@ async function endSession(auto) {
   // fold any unfinished captions into the transcript
   $('debrief').classList.remove('hidden');
   $('debrief-body').innerHTML = '<div class="debrief-loading">The coach is writing your report card…</div>';
-  try {
-    const res = await fetch(api('/api/debrief'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        persona: App.persona,
-        transcript: App.transcript,
-        feedback_history: HUD.exportState(),
-        code: App.code || '',
-      }),
-    });
-    const data = await res.json();
-    App.debriefMd = data.markdown;
-    $('debrief-body').innerHTML = renderMarkdown(data.markdown);
-  } catch (e) {
-    $('debrief-body').innerHTML =
-      '<p>Could not generate the debrief — the backend may be offline. Your History tab still has every scored turn.</p>';
+  const payload = JSON.stringify({
+    persona: App.persona,
+    transcript: App.transcript.slice(-120),
+    feedback_history: HUD.exportState(),
+    code: App.code || '',
+  });
+  // Two attempts, 50s each; then a recap built on-device — a report always appears.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      if (attempt === 2)
+        $('debrief-body').innerHTML =
+          '<div class="debrief-loading">Taking longer than it should — one more try…</div>';
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 50000);
+      const res = await fetch(api('/api/debrief'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        signal: ctl.signal,
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (!data.markdown || data.markdown.length < 40) throw new Error('thin debrief');
+      App.debriefMd = data.markdown;
+      $('debrief-body').innerHTML = renderMarkdown(data.markdown);
+      return;
+    } catch (e) { /* fall through to retry, then to the local recap */ }
   }
+  App.debriefMd = localDebrief();
+  $('debrief-body').innerHTML = renderMarkdown(App.debriefMd);
+}
+
+/* The recap the device can always write: real numbers, real quotes, named moves —
+   built from the analyst's per-turn calls already sitting in the HUD. */
+function localDebrief() {
+  const hist = HUD.exportState() || [];
+  const name = (App.cfg?.personas?.find(x => x.key === App.persona)?.name) || 'Your friend';
+  const L = ['# After the call', ''];
+  if (!hist.length) {
+    L.push('We talked — that already beats every book on charisma ever written. ' +
+           'The scorekeeper dozed off tonight, so this one goes unrecorded. The next one won\u2019t.');
+    L.push('', `— ${name}`);
+    return L.join('\n');
+  }
+  const keys = Object.keys(hist[0].scores);
+  const avg = {};
+  keys.forEach(k => { avg[k] = Math.round(hist.reduce((a, f) => a + f.scores[k], 0) / hist.length); });
+  const overall = Math.round(hist.reduce((a, f) => a + f.overall, 0) / hist.length);
+  L.push(`You gave me ${hist.length} scored turn${hist.length === 1 ? '' : 's'} tonight, ` +
+         `and they averaged **${overall}**. The full letter didn\u2019t make it out of the booth this time, ` +
+         'so here is the honest ledger, straight from my head.', '');
+  L.push('## The numbers', '', '| Dimension | Avg |', '|---|---|');
+  keys.forEach(k => L.push(`| ${k[0].toUpperCase() + k.slice(1)} | ${avg[k]} |`));
+  L.push('');
+  const best = [...hist].sort((a, b) => b.overall - a.overall).slice(0, 2);
+  L.push('## Moments that landed', '');
+  best.forEach(f => {
+    const q = (f.turn_text || '').slice(0, 110);
+    const move = f.pulled_off ? ` — that was **${f.pulled_off}**, whether you meant it or not` : '';
+    L.push(`- \u201c${q}\u201d (${f.overall})${move}. ${f.strength || ''}`);
+  });
+  const friendMoves = [...new Set(hist.filter(f => f.friend).map(f => f.friend.technique))].slice(0, 3);
+  if (friendMoves.length) {
+    L.push('', '## What I was doing to you', '');
+    friendMoves.forEach(t => L.push(`- **${t}** — watch for it next call; steal it shamelessly.`));
+  }
+  const tips = [...new Set(hist.map(f => f.tip && f.tip.technique).filter(Boolean))].slice(0, 3);
+  if (tips.length) {
+    L.push('', '## Steal these next time', '');
+    tips.forEach(t => L.push(`- **${t}** — the booth kept flagging this one for you tonight.`));
+  }
+  const fillers = hist.reduce((a, f) => a + (f.filler_count || 0), 0);
+  L.push('', '## Three things to try', '',
+    `1. ${fillers > 8 ? `You spent ${fillers} words on \u201cum\u201d and \u201clike\u201d tonight — next call, trade five of them for five silences.` : 'Hold one two-second pause on purpose and just grin through it.'}`,
+    '2. Answer one question non-literally — treat it as an invitation to play, not a form to fill.',
+    '3. Make one bold assumption about someone instead of asking them a question.',
+    '', `— ${name}`);
+  return L.join('\n');
 }
 
 /* ---------------- helpers ---------------- */

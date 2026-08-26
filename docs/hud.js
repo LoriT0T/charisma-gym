@@ -54,9 +54,14 @@ const HUD = {
     const feed = document.getElementById('feed');
     const empty = feed.querySelector('.feed-empty');
     if (empty) empty.remove();
-    const src = fb.tip.source === 'brand' ? 'brand' : 'ferguson';
+    const src = ['brand', 'ferguson', 'field'].includes(fb.tip.source) ? fb.tip.source : 'ferguson';
     const card = document.createElement('div');
     card.className = `tip-card src-${src}`;
+    const pulled = fb.pulled_off
+      ? `<div class="tip-pulled">✓ You pulled off <b>${esc(fb.pulled_off)}</b></div>` : '';
+    const friend = fb.friend
+      ? `<div class="tip-friend">Their move: <b>${esc(fb.friend.technique)}</b>${
+          fb.friend.note ? ' — ' + esc(fb.friend.note) : ''}</div>` : '';
     card.innerHTML = `
       <div class="tip-top">
         <span class="tip-badge">${src.toUpperCase()}</span>
@@ -64,7 +69,7 @@ const HUD = {
         <span class="tip-score">${fb.overall}</span>
       </div>
       <div class="tip-text">${esc(fb.tip.text)}</div>
-      <div class="tip-strength"><b>Landed:</b> ${esc(fb.strength)}</div>`;
+      <div class="tip-strength"><b>Landed:</b> ${esc(fb.strength)}</div>${pulled}${friend}`;
     feed.prepend(card);
     while (feed.children.length > 24) feed.lastChild.remove();
 
