@@ -117,7 +117,27 @@ class PcmPlayer {
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
     this.analyser.smoothingTimeConstant = 0.75;
-    this.analyser.connect(this.ctx.destination);
+    /* ── why playback goes through an <audio> element ──
+       The browser's echo canceller only subtracts audio it can SEE — media
+       elements and WebRTC streams. Raw WebAudio → destination is invisible to
+       it on several platforms (iOS WKWebView above all), so on speakerphone
+       the mic heard the friend and the friend answered himself — "Rascal can
+       hear his own voice". Routing through MediaStreamDestination + an
+       <audio> element puts the voice inside the canceller's reference. The
+       direct connection stays as a fallback for browsers where the element
+       route fails to start. */
+    try {
+      this.msd = this.ctx.createMediaStreamDestination();
+      this.analyser.connect(this.msd);
+      this.el = document.createElement('audio');
+      this.el.srcObject = this.msd.stream;
+      this.el.setAttribute('playsinline', '');
+      this.el.play().then(() => { this.viaElement = true; }).catch(() => {
+        this.analyser.connect(this.ctx.destination);
+      });
+    } catch {
+      this.analyser.connect(this.ctx.destination);
+    }
     this.playhead = 0;
     this.sources = new Set();
     this.enqueuedBytes = 0;
@@ -153,7 +173,12 @@ class PcmPlayer {
     });
   }
 
-  resume() { if (this.ctx.state === 'suspended') this.ctx.resume(); }
+  resume() {
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.el && this.el.paused) this.el.play().then(() => { this.viaElement = true; }).catch(() => {
+      if (!this.viaElement) { try { this.analyser.connect(this.ctx.destination); } catch {} }
+    });
+  }
 
   /** short two-note bell so the user instantly knows sound is working */
   chime() {

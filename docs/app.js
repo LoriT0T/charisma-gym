@@ -142,8 +142,64 @@ const App = {
 
 /* ---------------- boot ---------------- */
 
+/* The three friends, their moods and their voices are STATIC — they were only
+   ever served by the backend out of convenience, and that convenience made the
+   call screen blank for up to a minute on a cold Render start. He deep-linked
+   to #call, saw "no options to call", and reasonably concluded it was broken.
+   Now the cards paint instantly from this copy; the backend's later answer
+   patches only what is genuinely dynamic (key, passcode, mock). */
+const STATIC_CFG = {
+  personas: {
+    blend:    { name: 'Sterling', tagline: 'The velvet-voiced rascal — word-drunk mystic meets cheeky Scot.', default_voice: 'Algieba' },
+    brand:    { name: 'Vale',     tagline: 'The flamboyant poet — baroque vocabulary, mystic swerves, dangerous affection.', default_voice: 'Fenrir' },
+    ferguson: { name: 'Rascal',   tagline: 'The cheeky one — self-deprecating charm, awkward pauses, flirty mischief.', default_voice: 'Puck' },
+  },
+  scenarios: { freestyle: 'Just catching up', party: 'Pretend we just met at a party',
+               interview: 'Grill me like an interviewer', date: "Pretend it's a first date",
+               pitch: 'Let me pitch you something', banter: 'Banter with me' },
+  voices: { Algieba: 'Smooth', Puck: 'Upbeat', Fenrir: 'Excitable', Charon: 'Informative',
+            Kore: 'Firm', Aoede: 'Breezy', Zephyr: 'Bright', Sadaltager: 'Knowledgeable',
+            Algenib: 'Gravelly', Sulafat: 'Warm' },
+};
+
+function renderSetup(cfg) {
+  const cards = $('persona-cards');
+  cards.innerHTML = '';
+  for (const [key, p] of Object.entries(cfg.personas)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'persona-card' + (key === App.persona ? ' selected' : '');
+    btn.dataset.key = key;
+    btn.innerHTML = `
+      <div class="card-avatar" aria-hidden="true"></div>
+      <div class="p-name">${p.name}</div>
+      <div class="p-tag">${p.tagline}</div>`;
+    new Character(btn.querySelector('.card-avatar'), key);
+    btn.addEventListener('click', () => {
+      App.persona = key;
+      cards.querySelectorAll('.persona-card').forEach((c) => c.classList.toggle('selected', c === btn));
+      $('voice').value = cfg.personas[key].default_voice;
+      $('start-label').textContent = `Call ${p.name}`;
+      App.char.setPersona(key);
+    });
+    cards.appendChild(btn);
+  }
+  $('start-label').textContent = `Call ${cfg.personas[App.persona].name}`;
+
+  const scenarioSel = $('scenario');
+  scenarioSel.innerHTML = '';
+  for (const [key, label] of Object.entries(cfg.scenarios)) scenarioSel.add(new Option(label, key));
+  const voiceSel = $('voice');
+  voiceSel.innerHTML = '';
+  for (const [name, style] of Object.entries(cfg.voices)) voiceSel.add(new Option(`${name} — ${style}`, name));
+  voiceSel.value = cfg.personas[App.persona].default_voice;
+}
+
 async function boot() {
   App.char = new Character($('character'), App.persona);
+  renderSetup(STATIC_CFG);
+  const note0 = $('setup-note');
+  if (note0) note0.textContent = 'Waking the voice backend — Render sleeps when idle; up to a minute on the first call of the day.';
   const found = await resolveBackend();
   if (!found.cfg) {
     // The offline modules (warm-up, words, identity, reading, playbook) do not
@@ -160,41 +216,12 @@ async function boot() {
   App.originNote = found.note;
   if (found.origin !== null) API_ORIGIN = found.origin;
   HUD.init(App.cfg.rubric);
-
-  // persona cards — each with a live mini portrait
-  const cards = $('persona-cards');
-  cards.innerHTML = '';
-  for (const [key, p] of Object.entries(App.cfg.personas)) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'persona-card' + (key === App.persona ? ' selected' : '');
-    btn.dataset.key = key;
-    btn.innerHTML = `
-      <div class="card-avatar" aria-hidden="true"></div>
-      <div class="p-name">${p.name}</div>
-      <div class="p-tag">${p.tagline}</div>`;
-    new Character(btn.querySelector('.card-avatar'), key);
-    btn.addEventListener('click', () => {
-      App.persona = key;
-      cards.querySelectorAll('.persona-card').forEach((c) => c.classList.toggle('selected', c === btn));
-      $('voice').value = App.cfg.personas[key].default_voice;
-      $('start-label').textContent = `Call ${p.name}`;
-      App.char.setPersona(key);
-    });
-    cards.appendChild(btn);
-  }
-  $('start-label').textContent = `Call ${App.cfg.personas[App.persona].name}`;
-
-  // scenario + voice selects
-  const scenarioSel = $('scenario');
-  for (const [key, label] of Object.entries(App.cfg.scenarios)) {
-    scenarioSel.add(new Option(label, key));
-  }
-  const voiceSel = $('voice');
-  for (const [name, style] of Object.entries(App.cfg.voices)) {
-    voiceSel.add(new Option(`${name} — ${style}`, name));
-  }
-  voiceSel.value = App.cfg.personas[App.persona].default_voice;
+  /* The backend may know personas/voices the static copy does not; re-render
+     only if it actually differs. */
+  renderSetup({ ...STATIC_CFG, ...App.cfg,
+                personas: App.cfg.personas || STATIC_CFG.personas,
+                scenarios: App.cfg.scenarios || STATIC_CFG.scenarios,
+                voices: App.cfg.voices || STATIC_CFG.voices });
 
   if (App.cfg.passcode_required) $('passcode-field').classList.remove('hidden');
 
@@ -284,8 +311,27 @@ async function startSession() {
 
   // audio in
   App.mic = new MicStreamer({
-    onChunk: (buf) => { if (App.live && App.ws?.readyState === 1) App.ws.send(buf); },
-    onLevel: (lv) => { App.char.userLevel = Math.min(1, lv * 7); },
+    /* ── the backstop against self-hearing ──
+       Even with element-routed playback, speakerphone echo can leak. While
+       the friend is speaking, mic chunks are dropped UNLESS the room is
+       genuinely loud — which is you interrupting, and interrupting must keep
+       working. Echo of a phone speaker arrives quieter than a person a foot
+       from the mic; the threshold sits between them. Two loud packets in a
+       row are required, so a single click cannot fake a barge-in. */
+    onChunk: (buf) => {
+      if (!(App.live && App.ws?.readyState === 1)) return;
+      if (App.player && App.player.speaking) {
+        if ((App._loudRun || 0) < 2) return;   // gate: he is talking over — let it through only when sustained
+      }
+      App.ws.send(buf);
+    },
+    onLevel: (lv) => {
+      App.char.userLevel = Math.min(1, lv * 7);
+      /* The loud-run counter behind the barge-in gate: consecutive packets
+         above speech level. Speaker echo hovers well under 0.08 at arm's
+         length; a person speaking at the phone clears it easily. */
+      App._loudRun = lv > 0.08 ? (App._loudRun || 0) + 1 : 0;
+    },
   });
   try {
     await App.mic.start();
